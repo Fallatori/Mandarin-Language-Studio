@@ -1,0 +1,118 @@
+const jieba = require("nodejieba");
+const pinyin = require("pinyin");
+jieba.load();
+
+class SentenceService {
+	constructor(db) {
+		this.client = db.sequelize;
+		this.sentence = db.Sentence;
+		this.word = db.Word;
+	}
+
+	async getAllSentences() {
+		return await this.sentence.findAll({ where: {} }).catch(function (err) {
+			console.log(err);
+		});
+	}
+
+	async getSentenceByName(name) {
+		return await this.sentence
+			.findOne({ where: { chineseText: name } })
+			.catch(function (err) {
+				console.log(err);
+			});
+	}
+
+	async getSentenceById(id) {
+		return await this.sentence
+			.findOne({ where: { id: id } })
+			.catch(function (err) {
+				console.log(err);
+			});
+	}
+
+	async addSentence(sentenceData) {
+		const transaction = await this.client.transaction();
+		try {
+			const words = jieba.cut(sentenceData.chineseText);
+			const sentencePinyinParts = [];
+			const wordAssociations = [];
+
+			for (const [index, wordString] of words.entries()) {
+				if (wordString.trim() === "" || /[\p{P}\p{Z}]/u.test(wordString)) {
+					if (wordString.trim() !== "") {
+						sentencePinyinParts.push(wordString.trim());
+					}
+					continue;
+				}
+
+				const wordPinyin = pinyin
+					.default(wordString, {
+						style: pinyin.STYLE_NORMAL,
+						segment: true,
+					})
+					.map((arr) => arr[0])
+					.join("");
+
+				sentencePinyinParts.push(wordPinyin);
+
+				const [word] = await this.word.findOrCreate({
+					where: { chineseWord: wordString },
+					defaults: {
+						chineseWord: wordString,
+						pinyin: wordPinyin,
+						englishTranslation: "translation_placeholder",
+					},
+					transaction: transaction,
+				});
+
+				wordAssociations.push({ word: word, position: index });
+			}
+
+			const finalSentencePinyin = sentencePinyinParts.join(" ");
+
+			const newSentence = await this.sentence.create(
+				{
+					...sentenceData,
+					pinyin: finalSentencePinyin,
+				},
+				{ transaction: transaction }
+			);
+
+			for (const association of wordAssociations) {
+				await newSentence.addWord(association.word, {
+					through: { position: association.position },
+					transaction: transaction,
+				});
+			}
+
+			await transaction.commit();
+			return newSentence;
+		} catch (error) {
+			console.error("Error adding sentence:", error);
+			await transaction.rollback();
+			throw error;
+		}
+	}
+
+	async updateSentence(id, sentence) {
+		return await this.sentence.update(sentence, { where: { id: id } });
+	}
+
+	async deleteSentence(id) {
+		return await this.sentence.destroy({ where: { id: id } });
+	}
+
+	async markAsPracticed(id) {
+		const sentence = await this.getSentenceById(id);
+		if (!sentence) {
+			throw new Error("Sentence not found");
+		}
+
+		sentence.lastPracticedAt = new Date();
+		await sentence.save();
+		return sentence;
+	}
+}
+
+module.exports = SentenceService;

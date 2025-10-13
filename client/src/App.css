@@ -1,0 +1,180 @@
+/* src/App.css */
+body {
+	font-family: sans-serif;
+	line-height: 1.6;
+	margin: 0;
+	padding: 20px;
+	background-color: #242424;
+}
+
+.App {
+	max-width: 900px;
+	margin: 20px auto;
+	background: #242424;
+	padding: 30px;
+	box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+	border: 1px solid white;
+	border-radius: 8px;
+}
+
+h1,
+h2,
+h3 {
+	color: #cbcbcb;
+}
+
+.error-message {
+	color: #dc3545;
+	background-color: #f8d7da;
+	border: 1px solid #f5c6cb;
+	padding: 10px;
+	border-radius: 4px;
+	margin-bottom: 15px;
+}
+
+/* Form Styles */
+.sentence-form {
+	margin-bottom: 30px;
+	padding: 20px;
+	border: 1px solid #eee;
+	border-radius: 5px;
+	background-color: #242424;
+}
+
+.sentence-form div {
+	margin-bottom: 15px;
+}
+
+.sentence-form label {
+	display: block;
+	margin-bottom: 5px;
+	font-weight: bold;
+}
+
+.sentence-form input[type="text"],
+.sentence-form textarea,
+.sentence-form input[type="file"] {
+	width: 95%; /* Adjust as needed */
+	padding: 10px;
+	border: 1px solid #ccc;
+	border-radius: 4px;
+}
+
+.sentence-form textarea {
+	min-height: 60px;
+	resize: vertical;
+}
+
+.sentence-form button {
+	background-color: #007bff;
+	color: white;
+	padding: 10px 15px;
+	border: none;
+	border-radius: 4px;
+	cursor: pointer;
+	font-size: 1em;
+	transition: background-color 0.2s ease;
+}
+
+.sentence-form button:hover:not(:disabled) {
+	background-color: #0056b3;
+}
+.sentence-form button:disabled {
+	background-color: #cccccc;
+	cursor: not-allowed;
+}
+
+/* List Controls */
+.sentence-list-controls {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 20px;
+	padding-bottom: 10px;
+	border-bottom: 1px solid #eee;
+}
+
+.sentence-list-controls label {
+	margin-right: 10px;
+}
+.sentence-list-controls select {
+	padding: 5px 8px;
+	border-radius: 4px;
+}
+
+/* Sentence Item Styles */
+.sentence-item {
+	background: #242424;
+	border: 1px solid #e0e0e0;
+	border-radius: 5px;
+	padding: 15px;
+	margin-bottom: 15px;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.sentence-text .chinese {
+	font-size: 1.4em;
+	margin-bottom: 5px;
+	/* color: #222; */
+}
+.sentence-text .pinyin {
+	font-size: 1.1em;
+	color: #555;
+	margin-bottom: 5px;
+}
+.sentence-text .translation {
+	font-size: 1em;
+	color: #666;
+	font-style: italic;
+}
+
+.sentence-audio audio {
+	width: 100%;
+	margin-top: 10px;
+	height: 40px; /* Control height */
+}
+
+.sentence-meta {
+	font-size: 0.9em;
+	color: #888;
+	margin-top: 10px;
+	border-top: 1px dashed #eee;
+	padding-top: 10px;
+}
+.sentence-meta p {
+	margin: 2px 0;
+}
+.sentence-meta strong {
+	color: #555;
+}
+
+.sentence-actions {
+	margin-top: 15px;
+	display: flex;
+	gap: 10px; /* Spacing between buttons */
+}
+
+.sentence-actions button {
+	padding: 8px 12px;
+	border: none;
+	border-radius: 4px;
+	cursor: pointer;
+	font-size: 0.9em;
+	transition: background-color 0.2s ease;
+}
+
+.practice-button {
+	background-color: #28a745;
+	color: white;
+}
+.practice-button:hover {
+	background-color: #218838;
+}
+
+.delete-button {
+	background-color: #dc3545;
+	color: white;
+}
+.delete-button:hover {
+	background-color: #c82333;
+}
