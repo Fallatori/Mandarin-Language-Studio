@@ -5,10 +5,11 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const { v4: uuidv4 } = require("uuid");
+const cookieParser = require("cookie-parser");
 require("dotenv").config();
 
 var db = require("./models");
-db.sequelize.sync({ force: true });
+db.sequelize.sync({ force: false });
 
 const app = express();
 const PORT = process.env.PORT || 5001; // Use port 5001 to avoid conflict with React default 3000
@@ -16,14 +17,25 @@ const UPLOADS_DIR = path.join(__dirname, "uploads");
 const DB_PATH = path.join(__dirname, "sentences.json");
 
 const sentencesRouter = require("./routes/sentences");
+const authRouter = require("./routes/auth");
+const wordsRouter = require("./routes/words");
 
 // --- Middleware ---
-app.use(cors()); // Allow cross-origin requests
-app.use(express.json()); // Parse JSON request bodies
+app.use(
+	cors({
+		origin: process.env.FRONTEND_URL,
+		credentials: true,
+	}),
+);
+app.use(express.json());
+app.use(cookieParser());
+app.use(express.urlencoded({ extended: true }));
 app.use("/uploads", express.static(UPLOADS_DIR)); // Serve audio files statically
 
 // --- API Routes ---
 app.use("/api/sentences", sentencesRouter);
+app.use("/api/auth", authRouter);
+app.use("/api/words", wordsRouter);
 
 // --- Helper Functions for File DB ---
 const readSentences = () => {
@@ -47,79 +59,6 @@ const writeSentences = (sentences) => {
 	}
 };
 
-// --- Multer Configuration for Audio Upload ---
-// const storage = multer.diskStorage({
-// 	destination: function (req, file, cb) {
-// 		// Ensure uploads directory exists
-// 		if (!fs.existsSync(UPLOADS_DIR)) {
-// 			fs.mkdirSync(UPLOADS_DIR);
-// 		}
-// 		cb(null, UPLOADS_DIR);
-// 	},
-// 	filename: function (req, file, cb) {
-// 		// Create a unique filename to avoid overwrites
-// 		const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-// 		const extension = path.extname(file.originalname);
-// 		cb(null, file.fieldname + "-" + uniqueSuffix + extension);
-// 	},
-// });
-
-// const upload = multer({
-// 	storage: storage,
-// 	fileFilter: (req, file, cb) => {
-// 		// Basic audio file type check (add more mimetypes as needed)
-// 		if (file.mimetype.startsWith("audio/")) {
-// 			cb(null, true);
-// 		} else {
-// 			cb(new Error("Only audio files are allowed!"), false);
-// 		}
-// 	},
-// }); // Field name for audio file will be 'audioFile'
-
-// --- API Routes ---
-
-// GET all sentences
-// app.get("/api/sentences", (req, res) => {
-// 	const sentences = readSentences();
-// 	res.json(sentences);
-// });
-
-// POST a new sentence (with audio upload)
-// app.post("/api/sentences", upload.single("audioFile"), (req, res) => {
-// 	try {
-// 		const { chineseText, pinyin, englishTranslation } = req.body;
-// 		const audioFile = req.file; // File info from multer
-
-// 		if (!chineseText || !pinyin || !englishTranslation) {
-// 			return res.status(400).json({ message: "Missing required text fields." });
-// 		}
-
-// 		const newSentence = {
-// 			id: uuidv4(), // Generate unique ID
-// 			chineseText,
-// 			pinyin,
-// 			englishTranslation,
-// 			audioFilename: audioFile ? audioFile.filename : null, // Store filename or null
-// 			// Construct URL on the fly or store full URL if base URL is fixed
-// 			// audioUrl: audioFile ? `/uploads/${audioFile.filename}` : null,
-// 			createdAt: new Date().toISOString(),
-// 			lastPracticedAt: null, // Initially not practiced
-// 		};
-
-// 		const sentences = readSentences();
-// 		sentences.push(newSentence);
-// 		writeSentences(sentences);
-
-// 		res.status(201).json(newSentence);
-// 	} catch (error) {
-// 		console.error("Error creating sentence:", error);
-// 		// Clean up uploaded file if DB write fails? More complex logic needed for robustness.
-// 		res
-// 			.status(500)
-// 			.json({ message: "Error saving sentence", error: error.message });
-// 	}
-// });
-
 // PATCH - Mark a sentence as practiced
 app.patch("/api/sentences/:id/practice", (req, res) => {
 	const { id } = req.params;
@@ -136,36 +75,16 @@ app.patch("/api/sentences/:id/practice", (req, res) => {
 	res.json(sentences[sentenceIndex]); // Return the updated sentence
 });
 
-// DELETE a sentence
-// app.delete("/api/sentences/:id", (req, res) => {
-// 	const { id } = req.params;
-// 	let sentences = readSentences();
-// 	const sentenceIndex = sentences.findIndex((s) => s.id === id);
-
-// 	if (sentenceIndex === -1) {
-// 		return res.status(404).json({ message: "Sentence not found" });
-// 	}
-
-// 	// --- Delete Associated Audio File ---
-// 	const sentenceToDelete = sentences[sentenceIndex];
-// 	if (sentenceToDelete.audioFilename) {
-// 		const audioPath = path.join(UPLOADS_DIR, sentenceToDelete.audioFilename);
-// 		fs.unlink(audioPath, (err) => {
-// 			if (err) {
-// 				// Log error but continue deleting DB record - maybe file was already gone?
-// 				console.error(`Failed to delete audio file ${audioPath}:`, err);
-// 			} else {
-// 				console.log(`Deleted audio file: ${audioPath}`);
-// 			}
-// 		});
-// 	}
-
-// 	// Filter out the sentence
-// 	sentences = sentences.filter((s) => s.id !== id);
-// 	writeSentences(sentences);
-
-// 	res.status(204).send(); // No content response
-// });
+app.use((err, req, res, next) => {
+	if (err instanceof SyntaxError && err.status === 400 && "body" in err) {
+		return res.status(400).json({
+			status: "error",
+			statuscode: 400,
+			data: { result: "Invalid JSON in request body" },
+		});
+	}
+	next();
+});
 
 // --- Start Server ---
 app.listen(PORT, () => {
