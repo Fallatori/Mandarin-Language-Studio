@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import axios from 'axios';
 
 function SentenceForm({ onAddSentence, isLoading }) {
     const [chineseText, setChineseText] = useState('');
@@ -7,6 +8,26 @@ function SentenceForm({ onAddSentence, isLoading }) {
     const [englishTranslation, setEnglishTranslation] = useState('');
     const [audioFile, setAudioFile] = useState(null);
     const [error, setError] = useState('');
+    const [isTranslating, setIsTranslating] = useState(false);
+
+    const handleTranslate = async () => {
+        if (!chineseText.trim()) return;
+        
+        setIsTranslating(true);
+        try {
+            const response = await axios.post(
+                'http://localhost:5001/api/sentences/translate',
+                { text: chineseText },
+                { withCredentials: true }
+            );
+            setEnglishTranslation(response.data.translation);
+        } catch (err) {
+            console.error("Translation failed:", err);
+            setError("Could not auto-translate. Please enter manually.");
+        } finally {
+            setIsTranslating(false);
+        }
+    };
 
     const handleFileChange = (event) => {
         const file = event.target.files[0];
@@ -68,8 +89,24 @@ function SentenceForm({ onAddSentence, isLoading }) {
                     onChange={(e) => setPinyin(e.target.value)}
                 />
             </div> */}
-            <div>
-                <label htmlFor="englishTranslation">English:</label>
+             <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+                    <label htmlFor="englishTranslation" style={{ marginBottom: 0 }}>English:</label>
+                    <button 
+                        type="button" 
+                        onClick={handleTranslate}
+                        disabled={isTranslating || !chineseText}
+                        style={{ 
+                            padding: '4px 8px', 
+                            fontSize: '0.8rem', 
+                            background: '#444', 
+                            color: '#fff', 
+                            border: '1px solid #666' 
+                        }}
+                    >
+                        {isTranslating ? 'Translating...' : 'Auto Translate'}
+                    </button>
+                </div>
                 <textarea
                     id="englishTranslation"
                     value={englishTranslation}

@@ -144,6 +144,15 @@ class SentenceService {
 		await sentence.save();
 		return sentence;
 	}
+
+	async translateText(text) {
+		try {
+			return await translate.default(text, { from: "zh", to: "en" });
+		} catch (error) {
+			console.error("Translation service error:", error);
+			throw error;
+		}
+	}
 }
 
 module.exports = SentenceService;

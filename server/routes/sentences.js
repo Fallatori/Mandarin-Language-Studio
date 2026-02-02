@@ -38,6 +38,20 @@ const upload = multer({
 
 router.use(authenticateToken);
 
+router.post("/translate", async (req, res) => {
+	try {
+		const { text } = req.body;
+		if (!text) {
+			return res.status(400).json({ message: "Text is required" });
+		}
+		const translation = await sentenceService.translateText(text);
+		res.json({ translation });
+	} catch (error) {
+		console.error("Translation endpoint error:", error);
+		res.status(500).json({ message: "Translation failed" });
+	}
+});
+
 router.get("/", async (req, res) => {
 	try {
 		// const sentences = await sentenceService.getAllSentences();
