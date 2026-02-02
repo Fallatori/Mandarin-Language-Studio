@@ -10,17 +10,17 @@ function SentenceForm({ onAddSentence, isLoading }) {
     const [error, setError] = useState('');
     const [isTranslating, setIsTranslating] = useState(false);
 
-    const handleTranslate = async () => {
-        if (!chineseText.trim()) return;
+  const handleTranslate = async (sourceText, targetLang, setTargetField) => {
+        if (!sourceText.trim()) return;
         
         setIsTranslating(true);
         try {
             const response = await axios.post(
                 'http://localhost:5001/api/sentences/translate',
-                { text: chineseText },
+                { text: sourceText, targetLang }, 
                 { withCredentials: true }
             );
-            setEnglishTranslation(response.data.translation);
+            setTargetField(response.data.translation);
         } catch (err) {
             console.error("Translation failed:", err);
             setError("Could not auto-translate. Please enter manually.");
@@ -72,7 +72,23 @@ function SentenceForm({ onAddSentence, isLoading }) {
             <h3>Add New Sentence</h3>
             {error && <p className="error-message">{error}</p>}
             <div>
-                <label htmlFor="chineseText">Chinese:</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+                    <label htmlFor="chineseText" style={{ marginBottom: 0 }}>Chinese:</label>
+                    <button 
+                        type="button" 
+                        onClick={() => handleTranslate(englishTranslation, 'zh', setChineseText)}
+                        disabled={isTranslating || !englishTranslation}
+                        style={{ 
+                            padding: '4px 8px', 
+                            fontSize: '0.8rem', 
+                            background: '#444', 
+                            color: '#fff', 
+                            border: '1px solid #666' 
+                        }}
+                    >
+                        {isTranslating ? '...' : 'Suggest Chinese'}
+                    </button>
+                </div>
                 <textarea
                     id="chineseText"
                     value={chineseText}
@@ -94,7 +110,7 @@ function SentenceForm({ onAddSentence, isLoading }) {
                     <label htmlFor="englishTranslation" style={{ marginBottom: 0 }}>English:</label>
                     <button 
                         type="button" 
-                        onClick={handleTranslate}
+                        onClick={() => handleTranslate(chineseText, "en", setEnglishTranslation)}
                         disabled={isTranslating || !chineseText}
                         style={{ 
                             padding: '4px 8px', 

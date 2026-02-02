@@ -40,11 +40,11 @@ router.use(authenticateToken);
 
 router.post("/translate", async (req, res) => {
 	try {
-		const { text } = req.body;
+		const { text, targetLang } = req.body;
 		if (!text) {
 			return res.status(400).json({ message: "Text is required" });
 		}
-		const translation = await sentenceService.translateText(text);
+		const translation = await sentenceService.translateText(text, targetLang);
 		res.json({ translation });
 	} catch (error) {
 		console.error("Translation endpoint error:", error);

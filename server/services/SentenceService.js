@@ -145,9 +145,9 @@ class SentenceService {
 		return sentence;
 	}
 
-	async translateText(text) {
+	async translateText(text, targetLang = "en") {
 		try {
-			return await translate.default(text, { from: "zh", to: "en" });
+			return await translate.default(text, { to: targetLang });
 		} catch (error) {
 			console.error("Translation service error:", error);
 			throw error;
