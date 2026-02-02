@@ -1,4 +1,4 @@
-// src/components/SentenceForm.jsx
+
 import React, { useState } from 'react';
 
 function SentenceForm({ onAddSentence, isLoading }) {
@@ -12,7 +12,7 @@ function SentenceForm({ onAddSentence, isLoading }) {
         const file = event.target.files[0];
         if (file && file.type.startsWith('audio/')) {
             setAudioFile(file);
-            setError(''); // Clear previous error
+            setError('');
         } else {
             setAudioFile(null);
             setError('Please select a valid audio file.');
@@ -21,7 +21,7 @@ function SentenceForm({ onAddSentence, isLoading }) {
 
     const handleSubmit = (event) => {
         event.preventDefault();
-        setError(''); // Clear previous errors
+        setError(''); 
 
         if (!chineseText || !englishTranslation) {
             setError('All text fields are required.');
@@ -34,17 +34,16 @@ function SentenceForm({ onAddSentence, isLoading }) {
         formData.append('pinyin', pinyin);
         formData.append('englishTranslation', englishTranslation);
         if (audioFile) {
-            formData.append('audioFile', audioFile); // The key 'audioFile' must match multer setup on server
+            formData.append('audioFile', audioFile); 
         }
 
-        onAddSentence(formData); // Pass FormData to the App component
+        onAddSentence(formData);
 
-        // Clear form after submission attempt (App handles success/failure update)
         setChineseText('');
         setPinyin('');
         setEnglishTranslation('');
         setAudioFile(null);
-        event.target.reset(); // Reset file input visually
+        event.target.reset();
     };
 
     return (
@@ -60,7 +59,7 @@ function SentenceForm({ onAddSentence, isLoading }) {
                     required
                 />
             </div>
-            <div>
+            {/* <div>
                 <label htmlFor="pinyin">Pinyin:</label>
                 <input
                     type="text"
@@ -68,7 +67,7 @@ function SentenceForm({ onAddSentence, isLoading }) {
                     value={pinyin}
                     onChange={(e) => setPinyin(e.target.value)}
                 />
-            </div>
+            </div> */}
             <div>
                 <label htmlFor="englishTranslation">English:</label>
                 <textarea
@@ -83,7 +82,7 @@ function SentenceForm({ onAddSentence, isLoading }) {
                 <input
                     type="file"
                     id="audioFile"
-                    accept="audio/*" // Browser hint for file types
+                    accept="audio/*" 
                     onChange={handleFileChange}
                 />
                  {audioFile && <span style={{ marginLeft: '10px', fontSize: '0.9em'}}>Selected: {audioFile.name}</span>}

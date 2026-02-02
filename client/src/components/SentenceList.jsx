@@ -4,7 +4,6 @@ import SentenceItem from './SentenceItem';
 
 function SentenceList({ sentences, onMarkAsPracticed, onDeleteSentence, audioBaseUrl }) {
     if (!sentences || sentences.length === 0) {
-        // Message is handled in App.jsx, return null or minimal fragment here
         return null;
     }
 
