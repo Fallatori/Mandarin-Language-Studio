@@ -11,6 +11,7 @@ function SentencePage() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
     const [sortOrder, setSortOrder] = useState('desc');
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
     const fetchSentences = useCallback(async () => {
         setIsLoading(true);
@@ -81,12 +82,23 @@ function SentencePage() {
     };
 
     return (
-        <div className="main-content">
-            <div className="sentence-form-container">
-                <SentenceForm onAddSentence={addSentence} isLoading={isLoading} />
-                {error && <p className="error-message">{error}</p>}
+        <div className="main-content-column">
+            <div className="page-header">
+                <h2>My Sentences</h2>
+                <button className="add-btn" onClick={() => setIsModalOpen(true)}>+ Add New Sentence</button>
             </div>
-            <div className="sentence-list-container">
+
+            {isModalOpen && (
+                <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
+                    <div className="modal-content" onClick={e => e.stopPropagation()}>
+                        <button className="modal-close-btn" onClick={() => setIsModalOpen(false)}>×</button>
+                        <SentenceForm onAddSentence={addSentence} isLoading={isLoading} />
+                        {error && <p className="error-message">{error}</p>}
+                    </div>
+                </div>
+            )}
+            
+            <div className="sentence-list-container full-width">
                 {isLoading && sentences.length === 0 && <p>Loading sentences...</p>}
                 <SentenceList
                     sentences={sentences}
