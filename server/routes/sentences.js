@@ -8,6 +8,8 @@ const path = require("path");
 const fs = require("fs");
 const authenticateToken = require("../middleware/auth");
 
+const MAX_TRANSLATIONS_PER_DAY = 20;
+
 // Ensure the uploads directory exists
 const uploadDir = path.join(__dirname, "..", "uploads");
 if (!fs.existsSync(uploadDir)) {
@@ -44,7 +46,25 @@ router.post("/translate", async (req, res) => {
 		if (!text) {
 			return res.status(400).json({ message: "Text is required" });
 		}
+
+		const userId = req.user.id;
+		const today = new Date().toISOString().split("T")[0]; // Format: YYYY-MM-DD
+
+		const [quota] = await db.UserTranslationQuota.findOrCreate({
+			where: { user_id: userId, date: today },
+			defaults: { count: 0 },
+		});
+
+		if (quota.count >= MAX_TRANSLATIONS_PER_DAY) {
+			return res.status(429).json({
+				message: `Daily translation limit of ${MAX_TRANSLATIONS_PER_DAY} reached.`,
+			});
+		}
+
 		const translation = await sentenceService.translateText(text, targetLang);
+
+		await quota.increment("count");
+
 		res.json({ translation });
 	} catch (error) {
 		console.error("Translation endpoint error:", error);
@@ -98,6 +118,11 @@ router.post("/", upload.single("audioFile"), async (req, res) => {
 		res.status(201).json(newSentence);
 	} catch (error) {
 		console.error("Error adding sentence:", error);
+
+		if (error.message.includes("Daily translation limit")) {
+			return res.status(429).json({ message: error.message });
+		}
+
 		res.status(500).json({ message: "Failed to add sentence." });
 	}
 });

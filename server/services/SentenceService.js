@@ -9,6 +9,7 @@ class SentenceService {
 	constructor(db) {
 		this.client = db.sequelize;
 		this.sentence = db.Sentence;
+		this.UserTranslationQuota = db.UserTranslationQuota;
 		this.word = db.Word;
 	}
 
@@ -42,6 +43,23 @@ class SentenceService {
 			});
 	}
 
+	async checkAndIncrementQuota(userId, transaction) {
+		const MAX_QUOTA = 20;
+		const today = new Date().toISOString().split("T")[0];
+
+		const [quota] = await this.UserTranslationQuota.findOrCreate({
+			where: { user_id: userId, date: today },
+			defaults: { count: 0 },
+			transaction: transaction,
+		});
+
+		if (quota.count >= MAX_QUOTA) {
+			throw new Error(`Daily translation limit of ${MAX_QUOTA} reached.`);
+		}
+
+		await quota.increment("count", { transaction: transaction });
+	}
+
 	async addSentence(sentenceData) {
 		const transaction = await this.client.transaction();
 		try {
@@ -72,7 +90,7 @@ class SentenceService {
 					defaults: {
 						chineseWord: wordString,
 						pinyin: wordPinyin,
-						englishTranslation: "...",
+						englishTranslation: "",
 						creator_id: sentenceData.creator_id,
 						is_public: false,
 					},
@@ -81,17 +99,23 @@ class SentenceService {
 
 				if (created) {
 					try {
+						await this.checkAndIncrementQuota(
+							sentenceData.creator_id,
+							transaction,
+						);
+
 						const translation = await translate.default(wordString, {
 							from: "zh",
 							to: "en",
 						});
 						word.englishTranslation = translation;
-						await word.save({ transaction: transaction }); // Save the updated word
-					} catch (translateError) {
-						console.error(
-							`Could not translate word: ${wordString}`,
-							translateError,
-						);
+						await word.save({ transaction: transaction });
+					} catch (error) {
+						if (error.message.includes("Daily translation limit")) {
+							throw error;
+						}
+
+						console.error(`Could not translate word: ${wordString}`, error);
 						word.englishTranslation = "translation_failed";
 						await word.save({ transaction: transaction });
 					}
