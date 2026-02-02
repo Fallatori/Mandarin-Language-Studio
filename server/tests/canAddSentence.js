@@ -12,7 +12,7 @@ async function test() {
 	// console.log("Number of sentences:", sentencesBefore.length);
 
 	await driver.findElement(By.id("chineseText")).sendKeys("睡觉吧");
-	await driver.findElement(By.id("pinyin")).sendKeys("shui jiao ba");
+	// await driver.findElement(By.id("pinyin")).sendKeys("shui jiao ba");
 	await driver
 		.findElement(By.id("englishTranslation"))
 		.sendKeys("Let's go to sleep");
