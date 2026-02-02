@@ -2,6 +2,11 @@ module.exports = (sequelize, Sequelize) => {
 	const User = sequelize.define(
 		"User",
 		{
+			id: {
+				type: Sequelize.DataTypes.UUID,
+				defaultValue: Sequelize.DataTypes.UUIDV4,
+				primaryKey: true,
+			},
 			Username: {
 				type: Sequelize.DataTypes.STRING,
 				allowNull: false,
@@ -10,7 +15,7 @@ module.exports = (sequelize, Sequelize) => {
 				type: Sequelize.DataTypes.STRING,
 				allowNull: false,
 			},
-			Password: {
+			EncryptedPassword: {
 				type: Sequelize.DataTypes.STRING,
 				allowNull: false,
 			},
@@ -22,6 +27,7 @@ module.exports = (sequelize, Sequelize) => {
 	);
 	User.associate = (models) => {
 		User.belongsToMany(models.Word, { through: models.UserWord });
+		User.belongsToMany(models.Sentence, { through: models.UserSentence });
 	};
 	return User;
 };

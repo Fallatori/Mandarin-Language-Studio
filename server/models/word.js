@@ -19,8 +19,25 @@ module.exports = (sequelize) => {
 				allowNull: false,
 			},
 			englishTranslation: {
-				type: DataTypes.TEXT,
+				type: DataTypes.STRING,
 				allowNull: false,
+			},
+			audioFilename: {
+				type: DataTypes.STRING,
+				allowNull: true,
+			},
+			description: {
+				type: DataTypes.STRING,
+				allowNull: true,
+			},
+			creator_id: {
+				type: DataTypes.UUID,
+				allowNull: true,
+				references: { model: "Users", key: "id" },
+			},
+			is_public: {
+				type: DataTypes.BOOLEAN,
+				defaultValue: false,
 			},
 		},
 		{

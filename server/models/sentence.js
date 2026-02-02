@@ -31,6 +31,15 @@ module.exports = (sequelize) => {
 				type: DataTypes.DATE,
 				allowNull: true,
 			},
+			creator_id: {
+				type: DataTypes.UUID,
+				allowNull: true,
+				references: { model: "Users", key: "id" },
+			},
+			is_public: {
+				type: DataTypes.BOOLEAN,
+				defaultValue: false,
+			},
 		},
 		{
 			underscored: true,
@@ -40,6 +49,7 @@ module.exports = (sequelize) => {
 	);
 	Sentence.associate = (models) => {
 		Sentence.belongsToMany(models.Word, { through: models.SentenceWord });
+		Sentence.belongsToMany(models.User, { through: models.UserSentence });
 	};
 
 	return Sentence;

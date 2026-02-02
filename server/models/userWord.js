@@ -5,7 +5,6 @@ module.exports = (sequelize) => {
 		"UserWord",
 		{
 			id: {
-				// It's good practice for join tables to have their own PK
 				type: DataTypes.INTEGER,
 				primaryKey: true,
 				autoIncrement: true,
@@ -14,7 +13,10 @@ module.exports = (sequelize) => {
 				type: DataTypes.DATE,
 				allowNull: true,
 			},
-			// You could add other fields here, like 'status' ('learning', 'mastered')
+			status: {
+				type: DataTypes.ENUM("learning", "mastered"),
+				defaultValue: "learning",
+			},
 		},
 		{
 			underscored: true,

@@ -21,6 +21,5 @@ module.exports = (sequelize) => {
 			tableName: "SentenceWords",
 		}
 	);
-
 	return SentenceWord;
 };
