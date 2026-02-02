@@ -6,6 +6,7 @@ const sentenceService = new SentenceService(db);
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
+const authenticateToken = require("../middleware/auth");
 
 // Ensure the uploads directory exists
 const uploadDir = path.join(__dirname, "..", "uploads");
@@ -19,7 +20,7 @@ const storage = multer.diskStorage({
 	},
 	filename: function (req, file, cb) {
 		const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-		const extension = path.extname(file.originalname); // Get extension from original filename
+		const extension = path.extname(file.originalname);
 		cb(null, file.fieldname + "-" + uniqueSuffix + extension);
 	},
 });
@@ -27,7 +28,6 @@ const storage = multer.diskStorage({
 const upload = multer({
 	storage: storage,
 	fileFilter: (req, file, cb) => {
-		// Basic audio file type check (add more mimetypes as needed)
 		if (file.mimetype.startsWith("audio/")) {
 			cb(null, true);
 		} else {
@@ -36,22 +36,36 @@ const upload = multer({
 	},
 });
 
+router.use(authenticateToken);
+
 router.get("/", async (req, res) => {
-	const sentences = await sentenceService.getAllSentences();
-	res.json(sentences);
+	try {
+		// const sentences = await sentenceService.getAllSentences();
+		const sentences = await sentenceService.getSentencesByUser(req.user.id);
+
+		if (sentences == null) {
+			return res
+				.status(404)
+				.json({ message: "No sentences found for this user." });
+		}
+
+		res.json(sentences);
+	} catch (error) {
+		console.error("Error fetching sentences:", error);
+		res.status(500).json({ message: "Failed to fetch sentences." });
+	}
 });
 
 router.post("/", upload.single("audioFile"), async (req, res) => {
 	try {
-		const { chineseText, englishTranslation, pinyin } = req.body;
+		const { chineseText, englishTranslation } = req.body;
 
 		if (!chineseText || !englishTranslation) {
 			return res.status(400).json({ message: "Missing required fields." });
 		}
 
-		const existingSentence = await sentenceService.getSentenceByName(
-			chineseText
-		);
+		const existingSentence =
+			await sentenceService.getSentenceByName(chineseText);
 		if (existingSentence) {
 			return res
 				.status(400)
@@ -63,8 +77,8 @@ router.post("/", upload.single("audioFile"), async (req, res) => {
 		const newSentence = await sentenceService.addSentence({
 			chineseText: chineseText,
 			englishTranslation: englishTranslation,
-			pinyin: pinyin,
 			audioFilename: audioFilename,
+			creator_id: req.user.id,
 		});
 
 		res.status(201).json(newSentence);
@@ -97,7 +111,7 @@ router.delete("/:id", async (req, res) => {
 				__dirname,
 				"..",
 				"uploads",
-				sentence.audioFilename
+				sentence.audioFilename,
 			);
 
 			if (fs.existsSync(filePath)) {

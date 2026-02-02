@@ -1,6 +1,9 @@
 const jieba = require("nodejieba");
 const pinyin = require("pinyin");
+const translate = require("translate");
 jieba.load();
+
+translate.engine = "google";
 
 class SentenceService {
 	constructor(db) {
@@ -11,8 +14,16 @@ class SentenceService {
 
 	async getAllSentences() {
 		return await this.sentence.findAll({ where: {} }).catch(function (err) {
-			console.log(err);
+			console.error("Failed to get all sentences:", err);
 		});
+	}
+
+	async getSentencesByUser(userId) {
+		return await this.sentence
+			.findAll({ where: { creator_id: userId } })
+			.catch(function (err) {
+				console.error("Failed to get sentences by user:", err);
+			});
 	}
 
 	async getSentenceByName(name) {
@@ -56,15 +67,35 @@ class SentenceService {
 
 				sentencePinyinParts.push(wordPinyin);
 
-				const [word] = await this.word.findOrCreate({
+				const [word, created] = await this.word.findOrCreate({
 					where: { chineseWord: wordString },
 					defaults: {
 						chineseWord: wordString,
 						pinyin: wordPinyin,
-						englishTranslation: "translation_placeholder",
+						englishTranslation: "...",
+						creator_id: sentenceData.creator_id,
+						is_public: false,
 					},
 					transaction: transaction,
 				});
+
+				if (created) {
+					try {
+						const translation = await translate.default(wordString, {
+							from: "zh",
+							to: "en",
+						});
+						word.englishTranslation = translation;
+						await word.save({ transaction: transaction }); // Save the updated word
+					} catch (translateError) {
+						console.error(
+							`Could not translate word: ${wordString}`,
+							translateError,
+						);
+						word.englishTranslation = "translation_failed";
+						await word.save({ transaction: transaction });
+					}
+				}
 
 				wordAssociations.push({ word: word, position: index });
 			}
@@ -76,7 +107,7 @@ class SentenceService {
 					...sentenceData,
 					pinyin: finalSentencePinyin,
 				},
-				{ transaction: transaction }
+				{ transaction: transaction },
 			);
 
 			for (const association of wordAssociations) {
