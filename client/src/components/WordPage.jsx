@@ -17,7 +17,10 @@ function WordPage() {
             setError(null);
             try {
                 const response = await axios.get(API_URL, { withCredentials: true });
-                setWords(response.data);
+                const sortedWords = response.data.sort((a, b) => 
+                    new Date(b.createdAt) - new Date(a.createdAt)
+                );
+                setWords(sortedWords);
             } catch (err) {
                 console.error("Failed to fetch words:", err);
                 setError("Failed to load words. Please try again later.");

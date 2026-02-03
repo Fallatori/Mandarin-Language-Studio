@@ -40,6 +40,26 @@ const upload = multer({
 
 router.use(authenticateToken);
 
+router.post("/analyze", async (req, res) => {
+	try {
+		const { chineseText } = req.body;
+		if (!chineseText) {
+			return res.status(400).json({ message: "Text is required" });
+		}
+		const result = await sentenceService.analyzeSentence(
+			chineseText,
+			req.user.id,
+		);
+		res.json(result);
+	} catch (error) {
+		console.error("Analysis endpoint error:", error);
+		if (error.message.includes("Daily translation limit")) {
+			return res.status(429).json({ message: error.message });
+		}
+		res.status(500).json({ message: "Analysis failed" });
+	}
+});
+
 router.post("/translate", async (req, res) => {
 	try {
 		const { text, targetLang } = req.body;
@@ -92,7 +112,7 @@ router.get("/", async (req, res) => {
 
 router.post("/", upload.single("audioFile"), async (req, res) => {
 	try {
-		const { chineseText, englishTranslation } = req.body;
+		const { chineseText, englishTranslation, definedWords } = req.body;
 
 		if (!chineseText || !englishTranslation) {
 			return res.status(400).json({ message: "Missing required fields." });
@@ -106,6 +126,15 @@ router.post("/", upload.single("audioFile"), async (req, res) => {
 				.json({ message: "Sentence with this Chinese text already exists." });
 		}
 
+		let parsedWords = [];
+		if (definedWords) {
+			try {
+				parsedWords = JSON.parse(definedWords);
+			} catch (e) {
+				console.warn("Could not parse definedWords", e);
+			}
+		}
+
 		const audioFilename = req.file ? req.file.filename : null;
 
 		const newSentence = await sentenceService.addSentence({
@@ -113,6 +142,7 @@ router.post("/", upload.single("audioFile"), async (req, res) => {
 			englishTranslation: englishTranslation,
 			audioFilename: audioFilename,
 			creator_id: req.user.id,
+			definedWords: parsedWords,
 		});
 
 		res.status(201).json(newSentence);

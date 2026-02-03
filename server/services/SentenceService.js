@@ -43,6 +43,72 @@ class SentenceService {
 			});
 	}
 
+	async analyzeSentence(chineseText, userId) {
+		const words = jieba.cut(chineseText);
+		const resultWords = [];
+		const sentencePinyinParts = [];
+
+		for (const wordString of words) {
+			if (wordString.trim() === "" || /[\p{P}\p{Z}]/u.test(wordString)) {
+				if (wordString.trim() !== "") {
+					sentencePinyinParts.push(wordString.trim());
+				}
+				continue;
+			}
+
+			let wordPinyin = "";
+			let wordTranslation = "";
+			let isNew = false;
+			const dbWord = await this.word.findOne({
+				where: { chineseWord: wordString },
+			});
+
+			if (dbWord) {
+				wordPinyin = dbWord.pinyin;
+				wordTranslation = dbWord.englishTranslation;
+			} else {
+				isNew = true;
+				wordPinyin = pinyin
+					.default(wordString, {
+						style: pinyin.STYLE_NORMAL,
+						segment: true,
+					})
+					.map((arr) => arr[0])
+					.join("");
+				try {
+					if (userId) {
+						await this.checkAndIncrementQuota(userId);
+					}
+					wordTranslation = await translate.default(wordString, {
+						from: "zh",
+						to: "en",
+					});
+				} catch (e) {
+					if (e.message.includes("Daily translation limit")) {
+						throw e;
+					}
+					console.log("Translation failed for preview", e);
+				}
+			}
+
+			sentencePinyinParts.push(wordPinyin);
+
+			resultWords.push({
+				chineseWord: wordString,
+				pinyin: wordPinyin,
+				englishTranslation: wordTranslation,
+				isNew,
+			});
+		}
+
+		return {
+			chineseText,
+			pinyin: sentencePinyinParts.join(" "),
+			englishTranslation: "",
+			words: resultWords,
+		};
+	}
+
 	async checkAndIncrementQuota(userId, transaction) {
 		const MAX_QUOTA = 20;
 		const today = new Date().toISOString().split("T")[0];
@@ -61,6 +127,17 @@ class SentenceService {
 	}
 
 	async addSentence(sentenceData) {
+		const { definedWords } = sentenceData;
+		const definedWordsMap = new Map();
+		if (definedWords && Array.isArray(definedWords)) {
+			definedWords.forEach((w) => {
+				definedWordsMap.set(w.chineseWord, w);
+				if (w.chineseWord) {
+					jieba.insertWord(w.chineseWord);
+				}
+			});
+		}
+
 		const transaction = await this.client.transaction();
 		try {
 			const words = jieba.cut(sentenceData.chineseText);
@@ -75,13 +152,19 @@ class SentenceService {
 					continue;
 				}
 
-				const wordPinyin = pinyin
-					.default(wordString, {
-						style: pinyin.STYLE_NORMAL,
-						segment: true,
-					})
-					.map((arr) => arr[0])
-					.join("");
+				// Check if we have user-defined word data from the preview
+				const preDefined = definedWordsMap.get(wordString);
+				let wordPinyin = preDefined ? preDefined.pinyin : null;
+
+				if (!wordPinyin) {
+					wordPinyin = pinyin
+						.default(wordString, {
+							style: pinyin.STYLE_NORMAL,
+							segment: true,
+						})
+						.map((arr) => arr[0])
+						.join("");
+				}
 
 				sentencePinyinParts.push(wordPinyin);
 
@@ -90,7 +173,7 @@ class SentenceService {
 					defaults: {
 						chineseWord: wordString,
 						pinyin: wordPinyin,
-						englishTranslation: "",
+						englishTranslation: preDefined ? preDefined.englishTranslation : "",
 						creator_id: sentenceData.creator_id,
 						is_public: false,
 					},
@@ -98,25 +181,38 @@ class SentenceService {
 				});
 
 				if (created) {
-					try {
-						await this.checkAndIncrementQuota(
-							sentenceData.creator_id,
-							transaction,
-						);
+					// Only use auto-translation if user didn't provide one
+					if (!preDefined || !preDefined.englishTranslation) {
+						try {
+							await this.checkAndIncrementQuota(
+								sentenceData.creator_id,
+								transaction,
+							);
 
-						const translation = await translate.default(wordString, {
-							from: "zh",
-							to: "en",
-						});
-						word.englishTranslation = translation;
-						await word.save({ transaction: transaction });
-					} catch (error) {
-						if (error.message.includes("Daily translation limit")) {
-							throw error;
+							const translation = await translate.default(wordString, {
+								from: "zh",
+								to: "en",
+							});
+							word.englishTranslation = translation;
+							await word.save({ transaction: transaction });
+						} catch (error) {
+							if (error.message.includes("Daily translation limit")) {
+								throw error;
+							}
+
+							console.error(`Could not translate word: ${wordString}`, error);
+							word.englishTranslation = "translation_failed";
+							await word.save({ transaction: transaction });
 						}
-
-						console.error(`Could not translate word: ${wordString}`, error);
-						word.englishTranslation = "translation_failed";
+					}
+				} else if (preDefined) {
+					// Existing word: Update it if user edited it in the context of this sentence
+					if (
+						word.englishTranslation !== preDefined.englishTranslation ||
+						word.pinyin !== preDefined.pinyin
+					) {
+						word.englishTranslation = preDefined.englishTranslation;
+						word.pinyin = preDefined.pinyin;
 						await word.save({ transaction: transaction });
 					}
 				}
