@@ -15,6 +15,18 @@ class WordService {
 				);
 			});
 	}
+
+	async updateWord(id, updates) {
+		const word = await this.word.findOne({ where: { id } });
+		if (!word) throw new Error("Word not found");
+		return await word.update(updates);
+	}
+
+	async deleteWord(id) {
+		const word = await this.word.findOne({ where: { id } });
+		if (!word) throw new Error("Word not found");
+		return await word.destroy();
+	}
 }
 
 module.exports = WordService;

@@ -22,4 +22,32 @@ router.get("/", async (req, res) => {
 	}
 });
 
+router.put("/:id", async (req, res) => {
+	try {
+		const { id } = req.params;
+		const { chineseWord, pinyin, englishTranslation } = req.body;
+
+		const updatedWord = await wordService.updateWord(id, {
+			chineseWord,
+			pinyin,
+			englishTranslation,
+		});
+		res.json(updatedWord);
+	} catch (err) {
+		console.error("Error updating word:", err);
+		res.status(500).json({ error: "Failed to update word" });
+	}
+});
+
+router.delete("/:id", async (req, res) => {
+	try {
+		const { id } = req.params;
+		await wordService.deleteWord(id);
+		res.status(204).send();
+	} catch (err) {
+		console.error("Error deleting word:", err);
+		res.status(500).json({ error: "Failed to delete word" });
+	}
+});
+
 module.exports = router;
