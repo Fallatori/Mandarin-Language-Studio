@@ -5,3 +5,4 @@ DATABASE_NAME=your_db_name
 DIALECT=mysql
 DIALECTMODEL=mysql2
 HOST=localhost
+FRONTEND_URL=your_frontend_url
