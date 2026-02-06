@@ -7,6 +7,16 @@ const authenticateToken = require("../middleware/auth");
 
 router.use(authenticateToken);
 
+router.delete("/all", async (req, res) => {
+	try {
+		await wordService.deleteAllWordsByUser(req.user.id);
+		res.json({ message: "All words deleted successfully" });
+	} catch (error) {
+		console.error("Error deleting all words:", error);
+		res.status(500).json({ message: "Failed to delete all words" });
+	}
+});
+
 router.get("/", async (req, res) => {
 	try {
 		const words = await wordService.getWordsByUser(req.user.id);

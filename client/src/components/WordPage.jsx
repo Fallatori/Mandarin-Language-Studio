@@ -69,10 +69,22 @@ function WordPage() {
         }
     };
 
+    const deleteAllWords = async () => {
+        if (!window.confirm("Are you sure you want to delete ALL your words? This cannot be undone.")) return;
+         try {
+             await axios.delete(`${API_URL}/all`, { withCredentials: true });
+             setWords([]);
+             setSelectedWord(null);
+        } catch(err) { console.error(err); setError("Failed to delete all words"); }
+    }
+
     return (
         <div className="main-content">
             <div className="word-page-container">
-                <h2>My Word List</h2>
+                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                    <h2>My Word List</h2>
+                    <button className="add-btn" onClick={deleteAllWords} style={{backgroundColor: '#b91c1c', marginTop: '0'}}>Delete All</button>
+                </div>
                 {isLoading && <p>Loading words...</p>}
                 {error && <p className="error-message">{error}</p>}
                 

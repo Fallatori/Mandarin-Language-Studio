@@ -1,6 +1,7 @@
 const jieba = require("nodejieba");
 const pinyin = require("pinyin");
 const translate = require("translate");
+const { Op } = require("sequelize");
 jieba.load();
 
 translate.engine = "google";
@@ -27,12 +28,27 @@ class SentenceService {
 			});
 	}
 
-	async getSentenceByName(name) {
-		return await this.sentence
-			.findOne({ where: { chineseText: name } })
-			.catch(function (err) {
-				console.log(err);
-			});
+	async getSentenceByName(name, userId = null) {
+		const where = { chineseText: name };
+		if (userId) {
+			where.creator_id = userId;
+		}
+		return await this.sentence.findOne({ where }).catch(function (err) {
+			console.log(err);
+		});
+	}
+
+	async checkExistingSentences(chineseTexts, userId) {
+		const existing = await this.sentence.findAll({
+			where: {
+				creator_id: userId,
+				chineseText: {
+					[Op.in]: chineseTexts,
+				},
+			},
+			attributes: ["chineseText"],
+		});
+		return existing.map((e) => e.chineseText);
 	}
 
 	async getSentenceById(id) {
@@ -128,99 +144,17 @@ class SentenceService {
 
 	async addSentence(sentenceData) {
 		const { definedWords } = sentenceData;
-		const definedWordsMap = new Map();
-		if (definedWords && Array.isArray(definedWords)) {
-			definedWords.forEach((w) => {
-				definedWordsMap.set(w.chineseWord, w);
-				if (w.chineseWord) {
-					jieba.insertWord(w.chineseWord);
-				}
-			});
-		}
+
+		this._updateJiebaDictionary(definedWords);
 
 		const transaction = await this.client.transaction();
 		try {
-			const words = jieba.cut(sentenceData.chineseText);
-			const sentencePinyinParts = [];
-			const wordAssociations = [];
-
-			for (const [index, wordString] of words.entries()) {
-				if (wordString.trim() === "" || /[\p{P}\p{Z}]/u.test(wordString)) {
-					if (wordString.trim() !== "") {
-						sentencePinyinParts.push(wordString.trim());
-					}
-					continue;
-				}
-
-				// Check if we have user-defined word data from the preview
-				const preDefined = definedWordsMap.get(wordString);
-				let wordPinyin = preDefined ? preDefined.pinyin : null;
-
-				if (!wordPinyin) {
-					wordPinyin = pinyin
-						.default(wordString, {
-							style: pinyin.STYLE_NORMAL,
-							segment: true,
-						})
-						.map((arr) => arr[0])
-						.join("");
-				}
-
-				sentencePinyinParts.push(wordPinyin);
-
-				const [word, created] = await this.word.findOrCreate({
-					where: { chineseWord: wordString },
-					defaults: {
-						chineseWord: wordString,
-						pinyin: wordPinyin,
-						englishTranslation: preDefined ? preDefined.englishTranslation : "",
-						creator_id: sentenceData.creator_id,
-						is_public: false,
-					},
-					transaction: transaction,
-				});
-
-				if (created) {
-					// Only use auto-translation if user didn't provide one
-					if (!preDefined || !preDefined.englishTranslation) {
-						try {
-							await this.checkAndIncrementQuota(
-								sentenceData.creator_id,
-								transaction,
-							);
-
-							const translation = await translate.default(wordString, {
-								from: "zh",
-								to: "en",
-							});
-							word.englishTranslation = translation;
-							await word.save({ transaction: transaction });
-						} catch (error) {
-							if (error.message.includes("Daily translation limit")) {
-								throw error;
-							}
-
-							console.error(`Could not translate word: ${wordString}`, error);
-							word.englishTranslation = "translation_failed";
-							await word.save({ transaction: transaction });
-						}
-					}
-				} else if (preDefined) {
-					// Existing word: Update it if user edited it in the context of this sentence
-					if (
-						word.englishTranslation !== preDefined.englishTranslation ||
-						word.pinyin !== preDefined.pinyin
-					) {
-						word.englishTranslation = preDefined.englishTranslation;
-						word.pinyin = preDefined.pinyin;
-						await word.save({ transaction: transaction });
-					}
-				}
-
-				wordAssociations.push({ word: word, position: index });
-			}
-
-			const finalSentencePinyin = sentencePinyinParts.join(" ");
+			const { wordAssociations, finalSentencePinyin } =
+				await this._processSentenceContent(
+					sentenceData,
+					definedWords,
+					transaction,
+				);
 
 			const newSentence = await this.sentence.create(
 				{
@@ -246,12 +180,168 @@ class SentenceService {
 		}
 	}
 
+	_updateJiebaDictionary(definedWords) {
+		if (definedWords && Array.isArray(definedWords)) {
+			definedWords.forEach((w) => {
+				if (w.chineseWord) {
+					jieba.insertWord(w.chineseWord);
+				}
+			});
+		}
+	}
+
+	async _processSentenceContent(sentenceData, definedWords, transaction) {
+		const useDefinedWords =
+			definedWords && Array.isArray(definedWords) && definedWords.length > 0;
+		const wordAssociations = [];
+		let finalSentencePinyin = sentenceData.pinyin;
+
+		if (useDefinedWords) {
+			for (const [index, w] of definedWords.entries()) {
+				if (!w.chineseWord) continue;
+
+				const wordPinyin =
+					w.pinyin ||
+					pinyin
+						.default(w.chineseWord, {
+							style: pinyin.STYLE_NORMAL,
+							segment: true,
+						})
+						.map((arr) => arr[0])
+						.join("");
+
+				const [word, created] = await this.word.findOrCreate({
+					where: { chineseWord: w.chineseWord },
+					defaults: {
+						chineseWord: w.chineseWord,
+						pinyin: wordPinyin,
+						englishTranslation: w.englishTranslation || "",
+						creator_id: sentenceData.creator_id,
+						is_public: false,
+					},
+					transaction: transaction,
+				});
+
+				if (
+					!created &&
+					w.englishTranslation &&
+					w.englishTranslation !== word.englishTranslation
+				) {
+					word.englishTranslation = w.englishTranslation;
+					await word.save({ transaction });
+				}
+
+				wordAssociations.push({ word: word, position: index });
+			}
+
+			if (!finalSentencePinyin) {
+				finalSentencePinyin = definedWords.map((w) => w.pinyin).join(" ");
+			}
+		} else {
+			const words = jieba.cut(sentenceData.chineseText);
+			const sentencePinyinParts = [];
+
+			for (const [index, wordString] of words.entries()) {
+				if (wordString.trim() === "" || /[\p{P}\p{Z}]/u.test(wordString)) {
+					if (wordString.trim() !== "") {
+						sentencePinyinParts.push(wordString.trim());
+					}
+					continue;
+				}
+
+				const wordPinyin = pinyin
+					.default(wordString, {
+						style: pinyin.STYLE_NORMAL,
+						segment: true,
+					})
+					.map((arr) => arr[0])
+					.join("");
+
+				sentencePinyinParts.push(wordPinyin);
+
+				const [word, created] = await this.word.findOrCreate({
+					where: { chineseWord: wordString },
+					defaults: {
+						chineseWord: wordString,
+						pinyin: wordPinyin,
+						englishTranslation: "",
+						creator_id: sentenceData.creator_id,
+						is_public: false,
+					},
+					transaction: transaction,
+				});
+
+				if (created && !sentenceData.skipWordTranslation) {
+					try {
+						await this.checkAndIncrementQuota(
+							sentenceData.creator_id,
+							transaction,
+						);
+						const translation = await translate.default(wordString, {
+							from: "zh",
+							to: "en",
+						});
+						word.englishTranslation = translation;
+						await word.save({ transaction });
+					} catch (e) {}
+				}
+
+				wordAssociations.push({ word: word, position: index });
+			}
+			finalSentencePinyin = sentencePinyinParts.join(" ");
+		}
+
+		return { wordAssociations, finalSentencePinyin };
+	}
+
+	async addBulkSentences(sentencesData, creatorId) {
+		const results = {
+			added: [],
+			skipped: [],
+			errors: [],
+		};
+
+		for (const s of sentencesData) {
+			try {
+				if (!s.chineseText || !s.englishTranslation) {
+					results.errors.push({
+						text: s.chineseText || "Unknown",
+						error: "Missing fields",
+					});
+					continue;
+				}
+
+				const existing = await this.getSentenceByName(s.chineseText, creatorId);
+				if (existing) {
+					results.skipped.push(s.chineseText);
+					continue;
+				}
+
+				const newSentence = await this.addSentence({
+					...s,
+					definedWords: s.definedWords || s.words,
+					creator_id: creatorId,
+					skipWordTranslation: true,
+				});
+				results.added.push(newSentence);
+			} catch (e) {
+				console.error("Bulk add error:", e);
+				results.errors.push({ text: s.chineseText, error: e.message });
+			}
+		}
+		return results;
+	}
+
 	async updateSentence(id, sentence) {
 		return await this.sentence.update(sentence, { where: { id: id } });
 	}
 
 	async deleteSentence(id) {
 		return await this.sentence.destroy({ where: { id: id } });
+	}
+
+	async deleteAllSentencesByUser(userId) {
+		return await this.sentence.destroy({ where: { creator_id: userId } });
 	}
 
 	async markAsPracticed(id) {

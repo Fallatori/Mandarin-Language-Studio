@@ -40,6 +40,16 @@ const upload = multer({
 
 router.use(authenticateToken);
 
+router.delete("/all", async (req, res) => {
+	try {
+		await sentenceService.deleteAllSentencesByUser(req.user.id);
+		res.json({ message: "All sentences deleted successfully" });
+	} catch (error) {
+		console.error("Error deleting all sentences:", error);
+		res.status(500).json({ message: "Failed to delete all sentences" });
+	}
+});
+
 router.post("/analyze", async (req, res) => {
 	try {
 		const { chineseText } = req.body;
@@ -57,6 +67,48 @@ router.post("/analyze", async (req, res) => {
 			return res.status(429).json({ message: error.message });
 		}
 		res.status(500).json({ message: "Analysis failed" });
+	}
+});
+
+router.post("/check-existing", async (req, res) => {
+	try {
+		const { chineseTexts } = req.body;
+		if (!chineseTexts || !Array.isArray(chineseTexts)) {
+			return res
+				.status(400)
+				.json({ message: "Invalid format. Expected array of texts." });
+		}
+
+		const existing = await sentenceService.checkExistingSentences(
+			chineseTexts,
+			req.user.id,
+		);
+		res.json({ existing });
+	} catch (error) {
+		console.error("Check existing error:", error);
+		res.status(500).json({ message: "Check failed" });
+	}
+});
+
+router.post("/bulk", async (req, res) => {
+	try {
+		const { sentences } = req.body;
+		if (!Array.isArray(sentences)) {
+			return res
+				.status(400)
+				.json({ message: "Invalid format. Expected array of sentences." });
+		}
+
+		console.log(`Processing bulk upload of ${sentences.length} sentences...`);
+		const result = await sentenceService.addBulkSentences(
+			sentences,
+			req.user.id,
+		);
+
+		res.json(result);
+	} catch (error) {
+		console.error("Bulk upload error:", error);
+		res.status(500).json({ message: "Bulk upload failed" });
 	}
 });
 
@@ -118,8 +170,10 @@ router.post("/", upload.single("audioFile"), async (req, res) => {
 			return res.status(400).json({ message: "Missing required fields." });
 		}
 
-		const existingSentence =
-			await sentenceService.getSentenceByName(chineseText);
+		const existingSentence = await sentenceService.getSentenceByName(
+			chineseText,
+			req.user.id,
+		);
 		if (existingSentence) {
 			return res
 				.status(400)

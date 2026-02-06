@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import SentenceForm from './SentenceForm';
 import SentenceList from './SentenceList';
+import BulkUploadForm from './BulkUploadForm';
 
 const API_URL = 'http://localhost:5001/api/sentences';
 const AUDIO_BASE_URL = 'http://localhost:5001/uploads/';
@@ -12,6 +13,7 @@ function SentencePage() {
     const [error, setError] = useState(null);
     const [sortOrder, setSortOrder] = useState('desc');
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [modalMode, setModalMode] = useState('single'); // 'single' or 'bulk'
 
     const fetchSentences = useCallback(async () => {
         setIsLoading(true);
@@ -54,12 +56,25 @@ function SentencePage() {
                 withCredentials: true,
             });
             setSentences(prev => sortSentences([...prev, response.data], sortOrder));
+            setIsModalOpen(false);
         } catch (err) {
             console.error("Failed to add sentence:", err);
             setError(err.response?.data?.message || "Failed to add sentence.");
         } finally {
              setIsLoading(false);
         }
+    };
+
+    const handleBulkComplete = (newSentences) => {
+        if (newSentences && newSentences.length > 0) {
+            setSentences(prev => sortSentences([...prev, ...newSentences], sortOrder));
+        }
+        setIsModalOpen(false);
+    };
+
+    const handleOpenModal = (mode) => {
+        setModalMode(mode);
+        setIsModalOpen(true);
     };
 
     const markAsPracticed = async (id) => {
@@ -74,26 +89,44 @@ function SentencePage() {
     };
 
     const deleteSentence = async (id) => {
-         if (!window.confirm("Delete this sentence?")) return;
+        if(!window.confirm("Are you sure?")) return;
         try {
-            await axios.delete(`${API_URL}/${id}`, { withCredentials: true });
-            setSentences(prev => prev.filter(s => s.id !== id));
-        } catch (err) { console.error(err); }
-    };
+             await axios.delete(`${API_URL}/${id}`, { withCredentials: true });
+             setSentences(prev => prev.filter(s => s.id !== id));
+        } catch(err) { console.error(err); }
+    }
+
+    const deleteAllSentences = async () => {
+        if(!window.confirm("Are you sure you want to delete ALL your sentences? This cannot be undone.")) return;
+         try {
+             await axios.delete(`${API_URL}/all`, { withCredentials: true });
+             setSentences([]);
+        } catch(err) { console.error(err); setError("Failed to delete all sentences"); }
+    }
 
     return (
         <div className="main-content-column">
             <div className="page-header">
                 <h2>My Sentences</h2>
-                <button className="add-btn" onClick={() => setIsModalOpen(true)}>+ Add New Sentence</button>
+                <div className="header-actions">
+                    <button className="add-btn" onClick={() => handleOpenModal('single')}>+ New Sentence</button>
+                    <button className="add-btn btn-bulk" onClick={() => handleOpenModal('bulk')}>Bulk Upload</button>
+                    <button className="add-btn btn-delete" onClick={deleteAllSentences}>Delete All</button>
+                </div>
             </div>
 
             {isModalOpen && (
                 <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
                     <div className="modal-content" onClick={e => e.stopPropagation()}>
                         <button className="modal-close-btn" onClick={() => setIsModalOpen(false)}>×</button>
-                        <SentenceForm onAddSentence={addSentence} isLoading={isLoading} />
-                        {error && <p className="error-message">{error}</p>}
+                        
+                        {modalMode === 'single' ? (
+                            <SentenceForm onAddSentence={addSentence} isLoading={isLoading} />
+                        ) : (
+                            <BulkUploadForm onUploadComplete={handleBulkComplete} onCancel={() => setIsModalOpen(false)} />
+                        )}
+
+                        {error && modalMode === 'single' && <p className="error-message">{error}</p>}
                     </div>
                 </div>
             )}
