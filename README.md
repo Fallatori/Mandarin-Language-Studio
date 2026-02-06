@@ -72,3 +72,10 @@ Disable outer scroll when in the modal
 Add option to edit pinyin from sentence
 Plan a word/sentence game
 Create a option for bulk upload data
+Game idea - Get a english sentence, select the correct chinese sentence. (1 correct, 2 random from the users data)
+Game idea - Write the chinese word for a color, when the color shows up
+Game idea - association game, you get the word drink need to match with sentences or words that has something to do with the word "drink"
+Game idea - Recognice the word, see the word and the it will mix with other words and you need to click the correct one.
+Game idea - Recognice the correct chinese word, select between similar characters.
+Game idea - Radical game, choose a word that matches a certain radical.
+Find other radical based games
