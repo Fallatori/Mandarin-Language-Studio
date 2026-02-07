@@ -81,9 +81,9 @@ function WordPage() {
     return (
         <div className="main-content">
             <div className="word-page-container">
-                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                <div className="word-page-header">
                     <h2>My Word List</h2>
-                    <button className="add-btn" onClick={deleteAllWords} style={{backgroundColor: '#b91c1c', marginTop: '0'}}>Delete All</button>
+                    <button className="add-btn btn-delete-all" onClick={deleteAllWords}>Delete All</button>
                 </div>
                 {isLoading && <p>Loading words...</p>}
                 {error && <p className="error-message">{error}</p>}

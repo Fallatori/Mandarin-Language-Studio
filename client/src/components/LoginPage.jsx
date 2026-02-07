@@ -30,49 +30,49 @@ function LoginPage() {
     };
 
     return (
-        <div style={{ maxWidth: '400px', margin: '40px auto', padding: '20px', background: '#333', borderRadius: '8px' }}>
-            <h2 style={{color: '#fff'}}>{isLogin ? 'Login' : 'Register'}</h2>
+        <div className="login-container">
+            <h2 className="login-header">{isLogin ? 'Login' : 'Register'}</h2>
             {error && <p className="error-message">{error}</p>}
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+            <form onSubmit={handleSubmit} className="login-form">
                 {!isLogin && (
                     <div>
-                        <label style={{color: '#ccc'}}>Username</label>
+                        <label className="login-label">Username</label>
                         <input
                             type="text"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
                             required
-                            style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }}
+                            className="login-input"
                         />
                     </div>
                 )}
                 <div>
-                    <label style={{color: '#ccc'}}>Email</label>
+                    <label className="login-label">Email</label>
                     <input
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         required
-                        style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }}
+                        className="login-input"
                     />
                 </div>
                 <div>
-                    <label style={{color: '#ccc'}}>Password</label>
+                    <label className="login-label">Password</label>
                     <input
                         type="password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         required
-                        style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }}
+                        className="login-input"
                     />
                 </div>
                 <button type="submit">{isLogin ? 'Login' : 'Register'}</button>
             </form>
-            <p style={{ marginTop: '15px', color: '#ccc' }}>
+            <p className="login-footer">
                 {isLogin ? "Don't have an account? " : "Already have an account? "}
                 <button 
                     onClick={() => { setIsLogin(!isLogin); setError(''); }}
-                    style={{ background: 'none', border: 'none', color: '#646cff', padding: 0, textDecoration: 'underline', cursor: 'pointer' }}
+                    className="btn-text"
                 >
                     {isLogin ? 'Register' : 'Login'}
                 </button>

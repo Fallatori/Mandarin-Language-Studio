@@ -37,7 +37,7 @@ function Navbar() {
                     </div>
                 ) : (
                     location.pathname !== '/login' && (
-                        <Link to="/login" className="btn-login" style={{textDecoration: 'none'}}>Login</Link>
+                        <Link to="/login" className="btn-login btn-login-link">Login</Link>
                     )
                 )}
             </div>

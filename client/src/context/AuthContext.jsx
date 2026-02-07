@@ -12,8 +12,7 @@ export const AuthProvider = ({ children }) => {
             try {
                 const response = await axios.get('http://localhost:5001/api/auth/me', { withCredentials: true });
                 setUser(response.data.data.user);
-            } catch (error) {
-                // If 401/403, user is not logged in, which is fine
+            } catch {
                 setUser(null);
             } finally {
                 setLoading(false);
@@ -54,7 +53,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     if (loading) {
-        return <div style={{color: 'white', padding: '20px'}}>Loading...</div>; // Prevent redirect flash
+        return <div className="auth-loading">Loading...</div>;
     }
 
     return (

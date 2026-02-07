@@ -992,3 +992,88 @@ h3 {
 	color: #ff9800;
 	margin-left: 10px;
 }
+/* Login Page Styles */
+.login-container {
+	max-width: 400px;
+	margin: 40px auto;
+	padding: 20px;
+	background: #333;
+	border-radius: 8px;
+}
+
+.login-header {
+	color: #fff;
+	text-align: center;
+}
+
+.login-form {
+	display: flex;
+	flex-direction: column;
+	gap: 15px;
+}
+
+.login-label {
+	color: #ccc;
+}
+
+.login-input {
+	width: 100%;
+	padding: 8px;
+	box-sizing: border-box;
+	background-color: #444;
+	border: 1px solid #555;
+	border-radius: 4px;
+	color: white;
+}
+
+.login-input:focus {
+	outline: none;
+	border-color: #646cff;
+}
+
+.login-footer {
+	margin-top: 15px;
+	color: #ccc;
+	text-align: center;
+}
+
+.btn-text {
+	background: none;
+	border: none;
+	color: #646cff;
+	padding: 0;
+	text-decoration: underline;
+	cursor: pointer;
+}
+
+.btn-text:hover {
+	color: #747bff;
+}
+
+/* Word Page Styles */
+.word-page-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 20px;
+}
+
+.btn-delete-all {
+	background-color: #b91c1c;
+	margin-top: 0;
+}
+.btn-delete-all:hover {
+	background-color: #991b1b;
+}
+
+/* Navbar Styles */
+.btn-login-link {
+	text-decoration: none;
+}
+
+/* Auth Context Loading */
+.auth-loading {
+	color: white;
+	padding: 20px;
+	text-align: center;
+}
