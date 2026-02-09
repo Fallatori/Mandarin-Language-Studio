@@ -4,6 +4,7 @@ import SentencePage from './components/SentencePage';
 import WordPage from './components/WordPage';
 import LoginPage from './components/LoginPage';
 import ProtectedRoute from './components/ProtectedRoute';
+import FlashcardPage from './components/FlashcardPage';
 import { AuthProvider } from './context/AuthContext';
 import './App.css'; 
 
@@ -23,6 +24,9 @@ function App() {
                                 </ProtectedRoute>
                             } 
                         />
+                        <Route path="/cards" element={
+                            <ProtectedRoute><FlashcardPage /></ProtectedRoute>
+                        } />
                         <Route 
                             path="/words" 
                             element={
