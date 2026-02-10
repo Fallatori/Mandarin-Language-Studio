@@ -461,11 +461,19 @@ h3 {
 /* Sentence Item Styles */
 .sentence-item {
 	background: #242424;
-	box-shadow: 0px 0px 2px rgb(255, 255, 255);
-	border-radius: 5px;
+	border: 1px solid #444;
+	border-radius: 8px;
 	padding: 15px;
 	margin-bottom: 15px;
 	cursor: pointer;
+	transition:
+		transform 0.1s,
+		border-color 0.1s;
+}
+
+.sentence-item:hover {
+	transform: scale(1.01);
+	border-color: #646cff;
 }
 
 .sentence-details {
