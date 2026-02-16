@@ -9,6 +9,7 @@ function DeckPage() {
     const [selectedIds, setSelectedIds] = useState(new Set());
     const [step, setStep] = useState(1);
     const [isLoading, setIsLoading] = useState(false);
+    const [lastCheckedId, setLastCheckedId] = useState(null);
 
     useEffect(() => {
         fetchDecks();
@@ -58,6 +59,7 @@ function DeckPage() {
         setIsCreating(false);
         setNewName("");
         setSelectedIds(new Set());
+        setLastCheckedId(null);
         setStep(1);
     }, []);
 
@@ -91,10 +93,34 @@ function DeckPage() {
         }
     };
 
-    const toggleSelection = (id) => {
+    const toggleSelection = (id, event) => {
         const newSet = new Set(selectedIds);
-        if (newSet.has(id)) newSet.delete(id);
-        else newSet.add(id);
+        const willCheck = !selectedIds.has(id);
+        
+        if (event && event.shiftKey && lastCheckedId) {
+            const start = allSentences.findIndex(s => s.id === lastCheckedId);
+            const end = allSentences.findIndex(s => s.id === id);
+            
+            if (start !== -1 && end !== -1) {
+                const low = Math.min(start, end);
+                const high = Math.max(start, end);
+                
+                for (let i = low; i <= high; i++) {
+                    const itemId = allSentences[i].id;
+                    if (willCheck) {
+                        newSet.add(itemId);
+                    } else {
+                        newSet.delete(itemId);
+                    }
+                }
+            }
+        } else {
+            if (willCheck) newSet.add(id);
+            else newSet.delete(id);
+            
+            setLastCheckedId(id);
+        }
+        
         setSelectedIds(newSet);
     };
 
@@ -131,11 +157,19 @@ function DeckPage() {
 
                                     <div className="deck-selection-list">
                                         {allSentences.map(s => (
-                                            <label key={s.id} className="deck-selection-item">
+                                            <label 
+                                                key={s.id} 
+                                                className="deck-selection-item"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    toggleSelection(s.id, e);
+                                                }}
+                                            >
                                                 <input 
                                                     type="checkbox" 
                                                     checked={selectedIds.has(s.id)} 
-                                                    onChange={() => toggleSelection(s.id)}
+                                                    readOnly
+                                                    style={{pointerEvents: 'none'}}
                                                 />
                                                 <span style={{color: '#ddd'}}>{s.chineseText} <span style={{color: '#888', fontSize: '0.9em'}}>({s.englishTranslation})</span></span>
                                             </label>

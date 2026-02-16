@@ -678,6 +678,7 @@ h3 {
 	padding: 5px;
 	border-radius: 4px;
 	font-weight: normal;
+	user-select: none;
 }
 
 .deck-selection-list .deck-selection-item:hover {
