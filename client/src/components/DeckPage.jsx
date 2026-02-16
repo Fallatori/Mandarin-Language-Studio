@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 
 function DeckPage() {
@@ -7,6 +7,7 @@ function DeckPage() {
     const [isCreating, setIsCreating] = useState(false);
     const [newName, setNewName] = useState("");
     const [selectedIds, setSelectedIds] = useState(new Set());
+    const [step, setStep] = useState(1);
     const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
@@ -46,17 +47,39 @@ function DeckPage() {
             setIsCreating(false);
             setNewName("");
             setSelectedIds(new Set());
+            setStep(1);
             fetchDecks();
         } catch(err) {
             console.error(err);
         }
     };
 
-    const handleCancel = () => {
+    const handleCancel = useCallback(() => {
         setIsCreating(false);
         setNewName("");
         setSelectedIds(new Set());
-    };
+        setStep(1);
+    }, []);
+
+    const attemptClose = useCallback(() => {
+        if (selectedIds.size > 0 && isCreating) {
+            if (window.confirm("You have selected items. Are you sure you want to discard your changes?")) {
+                handleCancel();
+            }
+        } else {
+            handleCancel();
+        }
+    }, [isCreating, selectedIds, handleCancel]);
+
+    useEffect(() => {
+        const handleEsc = (e) => {
+            if (e.key === 'Escape' && isCreating) {
+                attemptClose();
+            }
+        };
+        window.addEventListener('keydown', handleEsc);
+        return () => window.removeEventListener('keydown', handleEsc);
+    }, [isCreating, attemptClose]); 
 
     const handleDelete = async (id) => {
         if(!window.confirm("Delete this deck?")) return;
@@ -85,48 +108,61 @@ function DeckPage() {
 
                 {/* MODAL OVERLAY */}
                 {isCreating && (
-                    <div className="modal-overlay">
-                        <div className="sentence-form modal-content">
-                            <h3>Create New Deck</h3>
-                            <input 
-                                className="sentence-input" 
-                                placeholder="Deck Name" 
-                                value={newName} 
-                                onChange={e => setNewName(e.target.value)}
-                            />
+                    <div className="modal-overlay" onClick={attemptClose}>
+                        <div className="sentence-form modal-content" onClick={(e) => e.stopPropagation()}>
+                            <h3>Create New Deck {step === 1 ? "- Select Sentences" : "- Name Deck"}</h3>
                             
-                            <div className="deck-selection-controls">
-                                <button 
-                                    className="btn-secondary deck-control-btn" 
-                                    onClick={() => setSelectedIds(new Set(allSentences.map(s => s.id)))}
-                                >
-                                    Select All
-                                </button>
-                                <button 
-                                    className="btn-secondary deck-control-btn" 
-                                    onClick={() => setSelectedIds(new Set())}
-                                >
-                                    Deselect All
-                                </button>
-                            </div>
+                            {step === 1 && (
+                                <>
+                                    <div className="deck-selection-controls">
+                                        <button 
+                                            className="btn-secondary deck-control-btn" 
+                                            onClick={() => setSelectedIds(new Set(allSentences.map(s => s.id)))}
+                                        >
+                                            Select All
+                                        </button>
+                                        <button 
+                                            className="btn-secondary deck-control-btn" 
+                                            onClick={() => setSelectedIds(new Set())}
+                                        >
+                                            Deselect All
+                                        </button>
+                                    </div>
 
-                            <div className="deck-selection-list">
-                                {allSentences.map(s => (
-                                    <label key={s.id} className="deck-selection-item">
-                                        <input 
-                                            type="checkbox" 
-                                            checked={selectedIds.has(s.id)} 
-                                            onChange={() => toggleSelection(s.id)}
-                                        />
-                                        <span style={{color: '#ddd'}}>{s.chineseText} <span style={{color: '#888', fontSize: '0.9em'}}>({s.englishTranslation})</span></span>
-                                    </label>
-                                ))}
-                            </div>
+                                    <div className="deck-selection-list">
+                                        {allSentences.map(s => (
+                                            <label key={s.id} className="deck-selection-item">
+                                                <input 
+                                                    type="checkbox" 
+                                                    checked={selectedIds.has(s.id)} 
+                                                    onChange={() => toggleSelection(s.id)}
+                                                />
+                                                <span style={{color: '#ddd'}}>{s.chineseText} <span style={{color: '#888', fontSize: '0.9em'}}>({s.englishTranslation})</span></span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                    <div className="preview-actions">
+                                        <button className="btn-secondary" onClick={handleCancel}>Cancel</button>
+                                        <button className="btn-success" onClick={() => setStep(2)}>Next</button>
+                                    </div>
+                                </>
+                            )}
 
-                            <div className="preview-actions">
-                                <button className="btn-secondary" onClick={handleCancel}>Cancel</button>
-                                <button className="btn-success" onClick={handleCreate}>Save Deck</button>
-                            </div>
+                            {step === 2 && (
+                                <>
+                                    <input 
+                                        className="sentence-input" 
+                                        placeholder="Deck Name" 
+                                        value={newName} 
+                                        onChange={e => setNewName(e.target.value)}
+                                        autoFocus
+                                    />
+                                    <div className="preview-actions">
+                                        <button className="btn-secondary" onClick={() => setStep(1)}>Back</button>
+                                        <button className="btn-success" onClick={handleCreate}>Save Deck</button>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
                 )}
