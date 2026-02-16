@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 
 function DeckPage() {
+    const navigate = useNavigate();
     const [decks, setDecks] = useState([]);
     const [allSentences, setAllSentences] = useState([]);
     const [isCreating, setIsCreating] = useState(false);
@@ -22,6 +24,9 @@ function DeckPage() {
             const res = await axios.get('http://localhost:5001/api/decks', { withCredentials: true });
             setDecks(res.data);
         } catch (err) {
+            if (err.response && err.response.status === 401) {
+                navigate('/login');
+            }
             console.error(err);
         } finally {
             setIsLoading(false);
@@ -33,11 +38,15 @@ function DeckPage() {
             const res = await axios.get('http://localhost:5001/api/sentences', { withCredentials: true });
             setAllSentences(res.data);
         } catch (err) {
+            if (err.response && err.response.status === 401) {
+                navigate('/login');
+            }
             console.error(err);
         }
     };
 
-    const handleCreate = async () => {
+    const handleCreate = async (e) => {
+        if (e && e.preventDefault) e.preventDefault();
         if (!newName) return;
         try {
             await axios.post('http://localhost:5001/api/decks', {
@@ -51,6 +60,9 @@ function DeckPage() {
             setStep(1);
             fetchDecks();
         } catch(err) {
+            if (err.response && err.response.status === 401) {
+                navigate('/login');
+            }
             console.error(err);
         }
     };
@@ -89,6 +101,9 @@ function DeckPage() {
             await axios.delete(`http://localhost:5001/api/decks/${id}`, { withCredentials: true });
             fetchDecks();
         } catch (err) {
+            if (err.response && err.response.status === 401) {
+                navigate('/login');
+            }
             console.error(err);
         }
     };
@@ -183,19 +198,24 @@ function DeckPage() {
                             )}
 
                             {step === 2 && (
-                                <>
-                                    <input 
-                                        className="sentence-input" 
-                                        placeholder="Deck Name" 
-                                        value={newName} 
-                                        onChange={e => setNewName(e.target.value)}
-                                        autoFocus
-                                    />
+                                <div className="deck-step-container">
+                                    <div className="deck-input-group">
+                                        <label>Deck Name</label>
+                                        <input 
+                                            className="sentence-input deck-name-input" 
+                                            placeholder="e.g., HSK 1 Vocabulary" 
+                                            value={newName} 
+                                            onChange={e => setNewName(e.target.value)}
+                                            onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+                                            autoFocus
+                                        />
+                                    </div>
+                                    
                                     <div className="preview-actions">
                                         <button className="btn-secondary" onClick={() => setStep(1)}>Back</button>
-                                        <button className="btn-success" onClick={handleCreate}>Save Deck</button>
+                                        <button className="btn-success" onClick={handleCreate}>Create Deck</button>
                                     </div>
-                                </>
+                                </div>
                             )}
                         </div>
                     </div>

@@ -1,8 +1,10 @@
 
 import React, { useState } from 'react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 
 function SentenceForm({ onAddSentence, isLoading }) {
+    const navigate = useNavigate();
      const [step, setStep] = useState('input'); // 'input' or 'preview'
     const [chineseText, setChineseText] = useState('');
     const [pinyin, setPinyin] = useState('');
@@ -25,6 +27,10 @@ function SentenceForm({ onAddSentence, isLoading }) {
             setTargetField(response.data.translation);
         } catch (err) {
             console.error("Translation failed:", err);
+            if (err.response && err.response.status === 401) {
+                navigate('/login');
+                return;
+            }
             setError("Could not auto-translate. Please enter manually.");
         } finally {
             setIsTranslating(false);

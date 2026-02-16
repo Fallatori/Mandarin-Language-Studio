@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 import SentenceForm from './SentenceForm';
 import SentenceList from './SentenceList';
 import BulkUploadForm from './BulkUploadForm';
@@ -8,6 +9,7 @@ const API_URL = 'http://localhost:5001/api/sentences';
 const AUDIO_BASE_URL = 'http://localhost:5001/uploads/';
 
 function SentencePage() {
+    const navigate = useNavigate();
     const [sentences, setSentences] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -24,6 +26,9 @@ function SentencePage() {
             setSentences(sorted);
         } catch (err) {
             console.error("Failed to fetch sentences:", err);
+            if (err.response && err.response.status === 401) {
+                navigate('/login');
+            }
             setError("Failed to load sentences. Please try again later.");
             setSentences([]); 
         } finally {
@@ -58,6 +63,10 @@ function SentencePage() {
             setSentences(prev => sortSentences([...prev, response.data], sortOrder));
             setIsModalOpen(false);
         } catch (err) {
+            if (err.response && err.response.status === 401) {
+                navigate('/login');
+                return;
+            }
             console.error("Failed to add sentence:", err);
             setError(err.response?.data?.message || "Failed to add sentence.");
         } finally {
@@ -85,7 +94,12 @@ function SentencePage() {
                  const updatedList = prev.map(s => s.id === id ? updatedSentence : s);  
                 return sortSentences(updatedList, sortOrder);
             });
-        } catch (err) { console.error(err); }
+        } catch (err) { 
+            if (err.response && err.response.status === 401) {
+                navigate('/login');
+            }
+            console.error(err); 
+        }
     };
 
     const deleteSentence = async (id) => {
@@ -93,7 +107,12 @@ function SentencePage() {
         try {
              await axios.delete(`${API_URL}/${id}`, { withCredentials: true });
              setSentences(prev => prev.filter(s => s.id !== id));
-        } catch(err) { console.error(err); }
+        } catch (err) {
+            if (err.response && err.response.status === 401) {
+                navigate('/login');
+            }
+             console.error(err);
+        }
     }
 
     const deleteAllSentences = async () => {

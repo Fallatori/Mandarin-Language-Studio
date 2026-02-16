@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 
 const API_URL = 'http://localhost:5001/api/words';
 
 function WordPage() {
+    const navigate = useNavigate();
     const [words, setWords] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -23,6 +25,9 @@ function WordPage() {
                 setWords(sortedWords);
             } catch (err) {
                 console.error("Failed to fetch words:", err);
+                if (err.response && err.response.status === 401) {
+                    navigate('/login');
+                }
                 setError("Failed to load words. Please try again later.");
             } finally {
                 setIsLoading(false);
@@ -53,6 +58,10 @@ function WordPage() {
             setIsEditing(false);
         } catch (err) {
             console.error("Failed to update word", err);
+            if (err.response && err.response.status === 401) {
+                navigate('/login');
+                return;
+            }
             alert("Failed to update word");
         }
     };
@@ -65,6 +74,10 @@ function WordPage() {
             setSelectedWord(null);
         } catch (err) {
             console.error("Failed to delete word", err);
+            if (err.response && err.response.status === 401) {
+                navigate('/login');
+                return;
+            }
             alert("Failed to delete word");
         }
     };
@@ -75,7 +88,14 @@ function WordPage() {
              await axios.delete(`${API_URL}/all`, { withCredentials: true });
              setWords([]);
              setSelectedWord(null);
-        } catch(err) { console.error(err); setError("Failed to delete all words"); }
+        } catch(err) { 
+             console.error(err); 
+             if (err.response && err.response.status === 401) {
+                navigate('/login');
+                return;
+            }
+             setError("Failed to delete all words"); 
+        }
     }
 
     return (

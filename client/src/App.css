@@ -1128,6 +1128,60 @@ h3 {
 	background-color: #991b1b;
 }
 
+.deck-step-container {
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+	padding: 20px;
+	gap: 30px;
+}
+
+.deck-summary-info {
+	text-align: center;
+}
+
+.summary-count {
+	font-size: 3em;
+	font-weight: bold;
+	color: #646cff;
+}
+
+.summary-label {
+	color: #888;
+	text-transform: uppercase;
+	font-size: 0.8em;
+	letter-spacing: 2px;
+}
+
+.deck-input-group {
+	width: 100%;
+	max-width: 400px;
+}
+
+.deck-input-group label {
+	display: block;
+	margin-bottom: 8px;
+	color: #ccc;
+	font-weight: 500;
+}
+
+.deck-name-input {
+	width: 100%;
+	padding: 15px;
+	font-size: 1.2em;
+	text-align: center;
+	background: #1a1a1a;
+	border: 2px solid #333;
+	border-radius: 8px;
+	color: white;
+}
+
+.deck-name-input:focus {
+	border-color: #646cff;
+	outline: none;
+}
+
 /* Navbar Styles */
 .btn-login-link {
 	text-decoration: none;

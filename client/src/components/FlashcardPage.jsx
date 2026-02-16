@@ -21,8 +21,15 @@ function FlashcardPage() {
     }, [user]);
 
     const fetchDecks = async () => {
-        const res = await axios.get('http://localhost:5001/api/decks', { withCredentials: true });
-        setDecks(res.data);
+        try {
+            const res = await axios.get('http://localhost:5001/api/decks', { withCredentials: true });
+            setDecks(res.data);
+        } catch (err) {
+            console.error(err);
+            if (err.response && err.response.status === 401) {
+                navigate('/login');
+            }
+        }
     };
     
 
@@ -48,8 +55,9 @@ function FlashcardPage() {
             setGameMode(mode); 
             setCurrentIndex(0);
         } catch (error) {
-            console.error("Failed to fetch sentences", error);
-        } finally {
+            console.error("Failed to fetch sentences", error);            if (error.response && error.response.status === 401) {
+                navigate('/login');
+            }        } finally {
             setIsLoading(false);
         }
     }
