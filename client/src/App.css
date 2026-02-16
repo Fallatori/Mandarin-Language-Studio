@@ -1218,15 +1218,18 @@ h3 {
 	background: #444;
 	color: white;
 	border: 1px solid #555;
-	width: 200px;
-	height: 40px;
+	width: 250px;
+	height: 50px;
+	font-size: 1.2rem;
 }
 
 .manage-decks-btn {
-	padding: 0 15px;
-	height: 40px;
+	padding: 0 20px;
+	height: 50px;
 	display: flex;
 	align-items: center;
+	font-size: 1.2rem;
+	border: 1px solid #555;
 }
 
 .flashcard-container {
@@ -1350,6 +1353,10 @@ h3 {
 }
 
 .btn-mode {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
 	padding: 15px 30px;
 	background-color: #444;
 	border: 2px solid #555;
@@ -1357,6 +1364,15 @@ h3 {
 	border-radius: 8px;
 	cursor: pointer;
 	transition: all 0.2s;
+}
+
+.btn-mode h3 {
+	margin: 0 0 5px 0;
+}
+
+.btn-mode small {
+	margin-bottom: 5px;
+	color: #bbb;
 }
 
 .btn-mode:hover {

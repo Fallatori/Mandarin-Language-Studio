@@ -13,11 +13,6 @@ function DeckPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [lastCheckedId, setLastCheckedId] = useState(null);
 
-    useEffect(() => {
-        fetchDecks();
-        fetchSentences();
-    }, [fetchDecks, fetchSentences]);
-
     const fetchDecks = useCallback(async () => {
         setIsLoading(true);
         try {
@@ -44,6 +39,13 @@ function DeckPage() {
             console.error(err);
         }
     }, [navigate]);
+
+    useEffect(() => {
+        fetchDecks();
+        fetchSentences();
+    }, [fetchDecks, fetchSentences]);
+
+
 
     const handleCreate = async (e) => {
         if (e && e.preventDefault) e.preventDefault();
