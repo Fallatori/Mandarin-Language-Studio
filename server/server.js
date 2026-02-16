@@ -8,7 +8,10 @@ const cookieParser = require("cookie-parser");
 require("dotenv").config();
 
 var db = require("./models");
-db.sequelize.sync({ force: false });
+db.sequelize.sync({
+	force: false,
+	alter: process.env.NODE_ENV !== "production",
+});
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -59,22 +62,6 @@ const writeSentences = (sentences) => {
 		console.error("Error writing sentences DB:", error);
 	}
 };
-
-//  Mark a sentence as practiced
-app.patch("/api/sentences/:id/practice", (req, res) => {
-	const { id } = req.params;
-	const sentences = readSentences();
-	const sentenceIndex = sentences.findIndex((s) => s.id === id);
-
-	if (sentenceIndex === -1) {
-		return res.status(404).json({ message: "Sentence not found" });
-	}
-
-	sentences[sentenceIndex].lastPracticedAt = new Date().toISOString();
-	writeSentences(sentences);
-
-	res.json(sentences[sentenceIndex]);
-});
 
 app.use((err, req, res, next) => {
 	if (err instanceof SyntaxError && err.status === 400 && "body" in err) {

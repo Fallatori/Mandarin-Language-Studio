@@ -12,6 +12,128 @@ class SentenceService {
 		this.sentence = db.Sentence;
 		this.UserTranslationQuota = db.UserTranslationQuota;
 		this.word = db.Word;
+		this.UserSentence = db.UserSentence;
+		this.Deck = db.Deck;
+	}
+
+	_calculateNextDueAt(xp, difficult) {
+		// Simple spacing schedule (days). Caps at 14.
+		// Difficult sentences get shorter spacing.
+		const days = difficult ? 1 : Math.min(14, Math.max(1, Math.floor(xp / 2)));
+		return new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+	}
+
+	async recordSentencePractice(sentenceId, userId, transaction) {
+		const sentence = await this.getSentenceById(sentenceId);
+		if (!sentence || sentence.creator_id !== userId) {
+			throw new Error("Sentence not found");
+		}
+
+		const now = new Date();
+
+		const [progress] = await this.UserSentence.findOrCreate({
+			where: { user_id: userId, sentence_id: sentenceId },
+			defaults: {
+				xp: 0,
+				difficult: false,
+				nextDueAt: null,
+				lastPracticedAt: null,
+				status: "learning",
+			},
+			transaction,
+		});
+
+		progress.xp = (progress.xp || 0) + 1;
+		progress.lastPracticedAt = now;
+		progress.nextDueAt = this._calculateNextDueAt(
+			progress.xp,
+			progress.difficult,
+		);
+		await progress.save({ transaction });
+
+		// Keep legacy sentence sorting working.
+		sentence.lastPracticedAt = now;
+		await sentence.save({ transaction });
+
+		return progress;
+	}
+
+	async setSentenceDifficult(sentenceId, userId, difficult) {
+		const sentence = await this.getSentenceById(sentenceId);
+		if (!sentence || sentence.creator_id !== userId) {
+			throw new Error("Sentence not found");
+		}
+
+		const [progress] = await this.UserSentence.findOrCreate({
+			where: { user_id: userId, sentence_id: sentenceId },
+			defaults: {
+				xp: 0,
+				difficult: false,
+				nextDueAt: null,
+				lastPracticedAt: null,
+				status: "learning",
+			},
+		});
+
+		progress.difficult = !!difficult;
+		if (progress.difficult && !progress.nextDueAt) {
+			progress.nextDueAt = this._calculateNextDueAt(progress.xp || 0, true);
+		}
+		await progress.save();
+
+		return progress;
+	}
+
+	async getFlashcardSentences(userId, { deckId = null, filter = "all" } = {}) {
+		const include = [];
+		if (deckId) {
+			include.push({
+				model: this.Deck,
+				as: "decks",
+				where: { id: deckId },
+				required: true,
+				through: { attributes: [] },
+			});
+		}
+
+		const sentences = await this.sentence.findAll({
+			where: { creator_id: userId },
+			include,
+		});
+
+		const sentenceIds = sentences.map((s) => s.id);
+		const progressRows = await this.UserSentence.findAll({
+			where: {
+				user_id: userId,
+				sentence_id: { [Op.in]: sentenceIds },
+			},
+		});
+
+		const progressBySentenceId = new Map(
+			progressRows.map((p) => [p.sentence_id, p.toJSON()]),
+		);
+
+		const now = new Date();
+		const enriched = sentences.map((s) => {
+			const json = s.toJSON();
+			return { ...json, progress: progressBySentenceId.get(s.id) || null };
+		});
+
+		if (filter === "difficult") {
+			return enriched.filter((s) => s.progress?.difficult);
+		}
+
+		if (filter === "due") {
+			return enriched.filter((s) => {
+				// Never practiced => due
+				if (!s.progress?.nextDueAt) return true;
+				// Difficult is always eligible for "due" sessions
+				if (s.progress?.difficult) return true;
+				return new Date(s.progress.nextDueAt) <= now;
+			});
+		}
+
+		return enriched;
 	}
 
 	async getAllSentences() {
@@ -344,15 +466,22 @@ class SentenceService {
 		return await this.sentence.destroy({ where: { creator_id: userId } });
 	}
 
-	async markAsPracticed(id) {
-		const sentence = await this.getSentenceById(id);
-		if (!sentence) {
-			throw new Error("Sentence not found");
-		}
+	async markAsPracticed(id, userId) {
+		const transaction = await this.client.transaction();
+		try {
+			const progress = await this.recordSentencePractice(
+				id,
+				userId,
+				transaction,
+			);
+			await transaction.commit();
 
-		sentence.lastPracticedAt = new Date();
-		await sentence.save();
-		return sentence;
+			const updatedSentence = await this.getSentenceById(id);
+			return { ...updatedSentence.toJSON(), progress };
+		} catch (e) {
+			await transaction.rollback();
+			throw e;
+		}
 	}
 
 	async translateText(text, targetLang = "en") {

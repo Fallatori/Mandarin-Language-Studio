@@ -1223,6 +1223,12 @@ h3 {
 	font-size: 1.2rem;
 }
 
+.deck-dropdown:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+	background: #3b3b3b;
+}
+
 .manage-decks-btn {
 	padding: 0 20px;
 	height: 50px;
@@ -1352,6 +1358,33 @@ h3 {
 	margin-top: 20px;
 }
 
+.flashcard-filters {
+	display: flex;
+	gap: 10px;
+	justify-content: center;
+	margin: 10px 0 20px;
+}
+
+.filter-tab {
+	background: #333;
+	border: 1px solid #555;
+	color: #ccc;
+	padding: 8px 14px;
+	border-radius: 999px;
+	cursor: pointer;
+}
+
+.filter-tab:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.filter-tab.active {
+	border-color: #646cff;
+	color: #fff;
+	background: rgba(100, 108, 255, 0.15);
+}
+
 .btn-mode {
 	display: flex;
 	flex-direction: column;
@@ -1364,6 +1397,11 @@ h3 {
 	border-radius: 8px;
 	cursor: pointer;
 	transition: all 0.2s;
+}
+
+.btn-mode:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
 }
 
 .btn-mode h3 {

@@ -162,6 +162,20 @@ router.get("/", async (req, res) => {
 	}
 });
 
+router.get("/flashcards", async (req, res) => {
+	try {
+		const { deckId, filter } = req.query;
+		const sentences = await sentenceService.getFlashcardSentences(req.user.id, {
+			deckId: deckId && deckId !== "all" ? deckId : null,
+			filter: filter || "all",
+		});
+		res.json(sentences);
+	} catch (error) {
+		console.error("Flashcards fetch error:", error);
+		res.status(500).json({ message: "Failed to load flashcards." });
+	}
+});
+
 router.post("/", upload.single("audioFile"), async (req, res) => {
 	try {
 		const { chineseText, englishTranslation, definedWords } = req.body;
@@ -211,11 +225,29 @@ router.post("/", upload.single("audioFile"), async (req, res) => {
 	}
 });
 
+router.patch("/:id/difficult", async (req, res) => {
+	try {
+		const { difficult } = req.body || {};
+		const updated = await sentenceService.setSentenceDifficult(
+			req.params.id,
+			req.user.id,
+			!!difficult,
+		);
+		res.json(updated);
+	} catch (error) {
+		console.error("Set difficult error:", error);
+		res.status(500).json({ message: "Failed to update difficult flag." });
+	}
+});
+
 router.patch("/:id/practice", async (req, res) => {
 	const { id } = req.params;
 
 	try {
-		const updatedSentence = await sentenceService.markAsPracticed(id);
+		const updatedSentence = await sentenceService.markAsPracticed(
+			id,
+			req.user.id,
+		);
 		res.json(updatedSentence);
 	} catch (error) {
 		console.error("Error marking sentence as practiced:", error);
