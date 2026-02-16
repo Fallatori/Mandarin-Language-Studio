@@ -52,6 +52,12 @@ function DeckPage() {
         }
     };
 
+    const handleCancel = () => {
+        setIsCreating(false);
+        setNewName("");
+        setSelectedIds(new Set());
+    };
+
     const handleDelete = async (id) => {
         if(!window.confirm("Delete this deck?")) return;
         try {
@@ -91,20 +97,19 @@ function DeckPage() {
                             
                             <div className="deck-selection-list">
                                 {allSentences.map(s => (
-                                    <div key={s.id} className="deck-selection-item">
+                                    <label key={s.id} className="deck-selection-item">
                                         <input 
                                             type="checkbox" 
                                             checked={selectedIds.has(s.id)} 
                                             onChange={() => toggleSelection(s.id)}
-                                            style={{cursor: 'pointer'}}
                                         />
                                         <span style={{color: '#ddd'}}>{s.chineseText} <span style={{color: '#888', fontSize: '0.9em'}}>({s.englishTranslation})</span></span>
-                                    </div>
+                                    </label>
                                 ))}
                             </div>
 
                             <div className="preview-actions">
-                                <button className="btn-secondary" onClick={() => setIsCreating(false)}>Cancel</button>
+                                <button className="btn-secondary" onClick={handleCancel}>Cancel</button>
                                 <button className="btn-success" onClick={handleCreate}>Save Deck</button>
                             </div>
                         </div>
