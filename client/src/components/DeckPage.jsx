@@ -16,9 +16,9 @@ function DeckPage() {
     useEffect(() => {
         fetchDecks();
         fetchSentences();
-    }, []);
+    }, [fetchDecks, fetchSentences]);
 
-    const fetchDecks = async () => {
+    const fetchDecks = useCallback(async () => {
         setIsLoading(true);
         try {
             const res = await axios.get('http://localhost:5001/api/decks', { withCredentials: true });
@@ -31,9 +31,9 @@ function DeckPage() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [navigate]);
 
-    const fetchSentences = async () => {
+    const fetchSentences = useCallback(async () => {
         try {
             const res = await axios.get('http://localhost:5001/api/sentences', { withCredentials: true });
             setAllSentences(res.data);
@@ -43,7 +43,7 @@ function DeckPage() {
             }
             console.error(err);
         }
-    };
+    }, [navigate]);
 
     const handleCreate = async (e) => {
         if (e && e.preventDefault) e.preventDefault();
