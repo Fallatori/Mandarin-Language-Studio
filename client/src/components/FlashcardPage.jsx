@@ -147,7 +147,7 @@ function FlashcardPage() {
           );
 
     return (
-        <div className="main-content">
+        <div className="main-content-column">
             <div className="game-header">
                 <h3>Card {currentIndex + 1} / {sentences.length}</h3>
                 <button className="btn-secondary" onClick={() => setGameMode(null)}>End Game</button>
