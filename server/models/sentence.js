@@ -45,11 +45,17 @@ module.exports = (sequelize) => {
 			underscored: true,
 			timestamps: true,
 			tableName: "Sentences",
-		}
+		},
 	);
 	Sentence.associate = (models) => {
 		Sentence.belongsToMany(models.Word, { through: models.SentenceWord });
 		Sentence.belongsToMany(models.User, { through: models.UserSentence });
+		Sentence.belongsToMany(models.CardGroup, {
+			through: "CardGroupSentences",
+			foreignKey: "sentence_id",
+			otherKey: "card_group_id",
+			as: "groups",
+		});
 	};
 
 	return Sentence;

@@ -1,4 +1,3 @@
-// server/server.js
 const express = require("express");
 const cors = require("cors");
 const multer = require("multer");
@@ -12,13 +11,14 @@ var db = require("./models");
 db.sequelize.sync({ force: false });
 
 const app = express();
-const PORT = process.env.PORT || 5001; // Use port 5001 to avoid conflict with React default 3000
+const PORT = process.env.PORT || 5001;
 const UPLOADS_DIR = path.join(__dirname, "uploads");
 const DB_PATH = path.join(__dirname, "sentences.json");
 
 const sentencesRouter = require("./routes/sentences");
 const authRouter = require("./routes/auth");
 const wordsRouter = require("./routes/words");
+const cardGroupRoutes = require("./routes/cardGroups");
 
 // --- Middleware ---
 app.use(
@@ -30,30 +30,31 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
-app.use("/uploads", express.static(UPLOADS_DIR)); // Serve audio files statically
+app.use("/uploads", express.static(UPLOADS_DIR));
 
 // --- API Routes ---
 app.use("/api/sentences", sentencesRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/words", wordsRouter);
+app.use("/api/card-groups", cardGroupRoutes);
 
 // --- Helper Functions for File DB ---
 const readSentences = () => {
 	try {
 		if (!fs.existsSync(DB_PATH)) {
-			fs.writeFileSync(DB_PATH, JSON.stringify([])); // Create if doesn't exist
+			fs.writeFileSync(DB_PATH, JSON.stringify([]));
 		}
 		const data = fs.readFileSync(DB_PATH, "utf8");
 		return JSON.parse(data);
 	} catch (error) {
 		console.error("Error reading sentences DB:", error);
-		return []; // Return empty array on error
+		return [];
 	}
 };
 
 const writeSentences = (sentences) => {
 	try {
-		fs.writeFileSync(DB_PATH, JSON.stringify(sentences, null, 2)); // Pretty print JSON
+		fs.writeFileSync(DB_PATH, JSON.stringify(sentences, null, 2));
 	} catch (error) {
 		console.error("Error writing sentences DB:", error);
 	}
@@ -72,7 +73,7 @@ app.patch("/api/sentences/:id/practice", (req, res) => {
 	sentences[sentenceIndex].lastPracticedAt = new Date().toISOString();
 	writeSentences(sentences);
 
-	res.json(sentences[sentenceIndex]); // Return the updated sentence
+	res.json(sentences[sentenceIndex]);
 });
 
 app.use((err, req, res, next) => {

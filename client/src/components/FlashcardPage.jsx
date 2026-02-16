@@ -9,21 +9,44 @@ function FlashcardPage() {
     const [isFlipped, setIsFlipped] = useState(false);
     const [gameMode, setGameMode] = useState(null); // 'CN_FRONT' or 'EN_FRONT'
     const [isLoading, setIsLoading] = useState(false);
+    const [groups, setGroups] = useState([]);
+    const [selectedGroupId, setSelectedGroupId] = useState("all");
 
     useEffect(() => {
         if (user) {
-            fetchSentences();
+            fetchGroups();
         }
     }, [user]);
+
+    const fetchGroups = async () => {
+        const res = await axios.get('http://localhost:5001/api/card-groups', { withCredentials: true });
+        setGroups(res.data);
+    };
     
-    const fetchSentences = async () => {
-        setIsLoading(true)
+
+    const startGame = async (mode) => {
+        setIsLoading(true);
         try {
-               const res = await axios.get('http://localhost:5001/api/sentences', { withCredentials: true });
-               const shuffled = res.data.sort(() => 0.5 - Math.random());
-               setSentences(shuffled)
+            let url = 'http://localhost:5001/api/sentences';
+            
+            if (selectedGroupId !== "all") {
+                url = `http://localhost:5001/api/card-groups/${selectedGroupId}/sentences`;
+            }
+
+            const res = await axios.get(url, { withCredentials: true });
+            
+            if (res.data.length === 0) {
+                alert("No sentences in this group!");
+                setIsLoading(false);
+                return;
+            }
+
+            const shuffled = res.data.sort(() => 0.5 - Math.random());
+            setSentences(shuffled);
+            setGameMode(mode); 
+            setCurrentIndex(0);
         } catch (error) {
-            console.error("Failed to fetch sentences for flashcards", error);
+            console.error("Failed to fetch sentences", error);
         } finally {
             setIsLoading(false);
         }
@@ -46,20 +69,33 @@ function FlashcardPage() {
     };
 
 
-     if (!gameMode) {
+    if (!gameMode) {
         return (
             <div className="main-content">
                 <div className="game-setup">
                     <h2>Flashcard Practice</h2>
-                    <p>You have {sentences.length} sentences to practice.</p>
-                    <p>Choose your mode:</p>
                     
+                    <div style={{margin: '20px 0'}}>
+                        <label style={{display:'block', marginBottom:'10px', color:'#ccc'}}>Select Deck:</label>
+                        <select 
+                            value={selectedGroupId} 
+                            onChange={(e) => setSelectedGroupId(e.target.value)}
+                            style={{padding:'10px', borderRadius:'4px', background:'#444', color:'white', border:'1px solid #555', width:'200px'}}
+                        >
+                            <option value="all">All Sentences</option>
+                            {groups.map(g => (
+                                <option key={g.id} value={g.id}>{g.name} ({g.sentences.length})</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <p>Choose your mode:</p>
                     <div className="mode-buttons">
-                        <button className="btn-mode" onClick={() => setGameMode('CN_FRONT')}>
+                        <button className="btn-mode" onClick={() => startGame('CN_FRONT')}>
                             <h3>Chinese Front</h3>
                             <small>English on back</small>
                         </button>
-                        <button className="btn-mode" onClick={() => setGameMode('EN_FRONT')}>
+                        <button className="btn-mode" onClick={() => startGame('EN_FRONT')}>
                             <h3>English Front</h3>
                             <small>Chinese on back</small>
                         </button>
