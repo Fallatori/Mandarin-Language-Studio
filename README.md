@@ -70,6 +70,8 @@ Add verification to words added to database from sentence, before saved. Like Yo
 verify creator_id matches req.user.id befor delete or update
 Disable outer scroll when in the modal
 Look into moving modal logic to own component
+Add option to search for sentence in the deckbuilder.
+Add option to edit deck
 Add option to edit pinyin from sentence
 Plan a word/sentence game
 Create a option for bulk upload data
