@@ -78,32 +78,34 @@ function CardGroupPage() {
                 </div>
 
                 {isCreating && (
-                    <div className="sentence-form" style={{marginBottom: '30px'}}>
-                        <h3>Create New Group</h3>
-                        <input 
-                            className="sentence-input" 
-                            placeholder="Group Name" 
-                            value={newName} 
-                            onChange={e => setNewName(e.target.value)}
-                        />
-                        
-                        <div style={{maxHeight:'200px', overflowY:'auto', border:'1px solid #444', margin:'10px 0', padding:'10px', background: '#222'}}>
-                            {allSentences.map(s => (
-                                <div key={s.id} style={{display:'flex', gap:'10px', marginBottom:'5px', alignItems: 'center'}}>
-                                    <input 
-                                        type="checkbox" 
-                                        checked={selectedIds.has(s.id)} 
-                                        onChange={() => toggleSelection(s.id)}
-                                        style={{cursor: 'pointer'}}
-                                    />
-                                    <span style={{color: '#ddd'}}>{s.chineseText} <span style={{color: '#888', fontSize: '0.9em'}}>({s.englishTranslation})</span></span>
-                                </div>
-                            ))}
-                        </div>
+                    <div className="modal-overlay">
+                        <div className="sentence-form modal-content">
+                            <h3>Create New Group</h3>
+                            <input 
+                                className="sentence-input" 
+                                placeholder="Group Name" 
+                                value={newName} 
+                                onChange={e => setNewName(e.target.value)}
+                            />
+                            
+                            <div className="group-selection-list">
+                                {allSentences.map(s => (
+                                    <div key={s.id} className="group-selection-item">
+                                        <input 
+                                            type="checkbox" 
+                                            checked={selectedIds.has(s.id)} 
+                                            onChange={() => toggleSelection(s.id)}
+                                            style={{cursor: 'pointer'}}
+                                        />
+                                        <span style={{color: '#ddd'}}>{s.chineseText} <span style={{color: '#888', fontSize: '0.9em'}}>({s.englishTranslation})</span></span>
+                                    </div>
+                                ))}
+                            </div>
 
-                        <div className="preview-actions">
-                            <button className="btn-secondary" onClick={() => setIsCreating(false)}>Cancel</button>
-                            <button className="btn-success" onClick={handleCreate}>Save Group</button>
+                            <div className="preview-actions">
+                                <button className="btn-secondary" onClick={() => setIsCreating(false)}>Cancel</button>
+                                <button className="btn-success" onClick={handleCreate}>Save Group</button>
+                            </div>
                         </div>
                     </div>
                 )}
