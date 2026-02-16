@@ -67,7 +67,7 @@ function FlashcardPage() {
         setIsFlipped(false);
         setTimeout(() => {
             setCurrentIndex((prev) => (prev + 1) % sentences.length);
-        }, 300);
+        }, 100);
     };
 
    const handlePrev = (e) => {
@@ -75,7 +75,7 @@ function FlashcardPage() {
         setIsFlipped(false);
         setTimeout(() => {
             setCurrentIndex((prev) => (prev - 1 + sentences.length) % sentences.length);
-        }, 300);
+        }, 100);
     };
 
 
