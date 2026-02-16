@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
@@ -14,13 +14,7 @@ function FlashcardPage() {
     const [decks, setDecks] = useState([]);
     const [selectedDeckId, setSelectedDeckId] = useState("all");
 
-    useEffect(() => {
-        if (user) {
-            fetchDecks();
-        }
-    }, [user]);
-
-    const fetchDecks = async () => {
+    const fetchDecks = useCallback(async () => {
         try {
             const res = await axios.get('http://localhost:5001/api/decks', { withCredentials: true });
             setDecks(res.data);
@@ -30,7 +24,13 @@ function FlashcardPage() {
                 navigate('/login');
             }
         }
-    };
+    }, [navigate]);
+
+    useEffect(() => {
+        if (user) {
+            fetchDecks();
+        }
+    }, [user, fetchDecks]);
     
 
     const startGame = async (mode) => {
