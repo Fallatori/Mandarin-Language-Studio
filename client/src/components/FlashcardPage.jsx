@@ -52,37 +52,43 @@ function FlashcardPage() {
         return res.data;
     }, []);
 
+    const refreshCounts = useCallback(async () => {
+        if (!user) return;
+
+        setIsCountsLoading(true);
+        try {
+            const effectiveDeckId = selectedDeckId || 'all';
+            const counts = await fetchFlashcardCounts(effectiveDeckId);
+            if (counts) {
+                setFilterCounts({
+                    all: counts.all || 0,
+                    due: counts.due || 0,
+                    difficult: counts.difficult || 0,
+                });
+            }
+        } catch (error) {
+            console.error('Failed to fetch flashcard counts', error);
+            if (error.response && error.response.status === 401) {
+                navigate('/login');
+            }
+        } finally {
+            setIsCountsLoading(false);
+        }
+    }, [fetchFlashcardCounts, navigate, selectedDeckId, user]);
+
     useEffect(() => {
         if (!user) return;
 
-        let isCancelled = false;
-        const run = async () => {
-            setIsCountsLoading(true);
-            try {
-                const effectiveDeckId = selectedDeckId || 'all';
-                const counts = await fetchFlashcardCounts(effectiveDeckId);
-                if (!isCancelled && counts) {
-                    setFilterCounts({
-                        all: counts.all || 0,
-                        due: counts.due || 0,
-                        difficult: counts.difficult || 0,
-                    });
-                }
-            } catch (error) {
-                console.error('Failed to fetch flashcard counts', error);
-                if (error.response && error.response.status === 401) {
-                    navigate('/login');
-                }
-            } finally {
-                if (!isCancelled) setIsCountsLoading(false);
-            }
-        };
+        refreshCounts();
+    }, [user, selectedDeckId, refreshCounts]);
 
-        run();
-        return () => {
-            isCancelled = true;
-        };
-    }, [user, selectedDeckId, fetchFlashcardCounts, navigate]);
+    const endGame = useCallback(() => {
+        setGameMode(null);
+        setSentences([]);
+        setCurrentIndex(0);
+        setIsFlipped(false);
+        refreshCounts();
+    }, [refreshCounts]);
 
     const fetchFlashcards = useCallback(async (nextFilter, nextDeckId) => {
         const params = new URLSearchParams();
@@ -185,7 +191,9 @@ function FlashcardPage() {
 
             if (nextSentences.length === 0) {
                 setGameMode(null);
+                setSentences([]);
                 setCurrentIndex(0);
+                refreshCounts();
                 return;
             }
 
@@ -329,7 +337,7 @@ function FlashcardPage() {
         <div className="main-content-column">
             <div className="game-header">
                 <h3>Card {currentIndex + 1} / {sentences.length}</h3>
-                <button className="btn-secondary" onClick={() => setGameMode(null)}>End Game</button>
+                <button className="btn-secondary" onClick={endGame}>End Game</button>
             </div>
 
             <div 

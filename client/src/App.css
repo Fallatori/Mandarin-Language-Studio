@@ -497,7 +497,7 @@ h3 {
 }
 
 .sentence-text .chinese {
-	font-size: 1.4em;
+	font-size: 1.8em;
 	margin-bottom: 5px;
 	/* color: #222; */
 }
@@ -508,7 +508,7 @@ h3 {
 }
 .sentence-text .translation {
 	font-size: 1em;
-	color: #999999;
+	color: #ccc;
 	font-style: italic;
 }
 
