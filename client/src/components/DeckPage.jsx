@@ -95,6 +95,21 @@ function DeckPage() {
                                 onChange={e => setNewName(e.target.value)}
                             />
                             
+                            <div className="deck-selection-controls">
+                                <button 
+                                    className="btn-secondary deck-control-btn" 
+                                    onClick={() => setSelectedIds(new Set(allSentences.map(s => s.id)))}
+                                >
+                                    Select All
+                                </button>
+                                <button 
+                                    className="btn-secondary deck-control-btn" 
+                                    onClick={() => setSelectedIds(new Set())}
+                                >
+                                    Deselect All
+                                </button>
+                            </div>
+
                             <div className="deck-selection-list">
                                 {allSentences.map(s => (
                                     <label key={s.id} className="deck-selection-item">

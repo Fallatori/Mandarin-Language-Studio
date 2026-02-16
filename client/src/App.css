@@ -711,6 +711,18 @@ h3 {
 	padding-right: 30px;
 }
 
+.deck-selection-controls {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 10px;
+}
+
+.deck-control-btn {
+	padding: 5px 10px;
+	font-size: 0.9em;
+}
+
 .word-page-container {
 	width: 100%;
 }
