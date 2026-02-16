@@ -176,6 +176,19 @@ router.get("/flashcards", async (req, res) => {
 	}
 });
 
+router.get("/flashcards/counts", async (req, res) => {
+	try {
+		const { deckId } = req.query;
+		const counts = await sentenceService.getFlashcardCounts(req.user.id, {
+			deckId: deckId && deckId !== "all" ? deckId : null,
+		});
+		res.json(counts);
+	} catch (error) {
+		console.error("Flashcards counts error:", error);
+		res.status(500).json({ message: "Failed to load flashcard counts." });
+	}
+});
+
 router.post("/", upload.single("audioFile"), async (req, res) => {
 	try {
 		const { chineseText, englishTranslation, definedWords } = req.body;

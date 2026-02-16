@@ -17,12 +17,11 @@ function FlashcardPage() {
     const [sessionFilter, setSessionFilter] = useState("all");
     const [hasChosenScope, setHasChosenScope] = useState(false);
 
-    const isDeckSelected = !!selectedDeckId;
-    const isFilterSelected = filter !== 'all';
-    const deckDisabled = isFilterSelected;
-    const filterDisabled = isDeckSelected;
+    const [filterCounts, setFilterCounts] = useState({ all: 0, due: 0, difficult: 0 });
+    const [isCountsLoading, setIsCountsLoading] = useState(false);
 
-    const modeDisabled = !hasChosenScope;
+    const effectiveCount = filterCounts[filter] ?? 0;
+    const modeDisabled = !hasChosenScope || isCountsLoading || effectiveCount === 0;
 
     const fetchDecks = useCallback(async () => {
         try {
@@ -41,6 +40,49 @@ function FlashcardPage() {
             fetchDecks();
         }
     }, [user, fetchDecks]);
+
+    const fetchFlashcardCounts = useCallback(async (nextDeckId) => {
+        const params = new URLSearchParams();
+        if (nextDeckId && nextDeckId !== 'all') {
+            params.set('deckId', nextDeckId);
+        }
+
+        const url = `http://localhost:5001/api/sentences/flashcards/counts?${params.toString()}`;
+        const res = await axios.get(url, { withCredentials: true });
+        return res.data;
+    }, []);
+
+    useEffect(() => {
+        if (!user) return;
+
+        let isCancelled = false;
+        const run = async () => {
+            setIsCountsLoading(true);
+            try {
+                const effectiveDeckId = selectedDeckId || 'all';
+                const counts = await fetchFlashcardCounts(effectiveDeckId);
+                if (!isCancelled && counts) {
+                    setFilterCounts({
+                        all: counts.all || 0,
+                        due: counts.due || 0,
+                        difficult: counts.difficult || 0,
+                    });
+                }
+            } catch (error) {
+                console.error('Failed to fetch flashcard counts', error);
+                if (error.response && error.response.status === 401) {
+                    navigate('/login');
+                }
+            } finally {
+                if (!isCancelled) setIsCountsLoading(false);
+            }
+        };
+
+        run();
+        return () => {
+            isCancelled = true;
+        };
+    }, [user, selectedDeckId, fetchFlashcardCounts, navigate]);
 
     const fetchFlashcards = useCallback(async (nextFilter, nextDeckId) => {
         const params = new URLSearchParams();
@@ -169,6 +211,16 @@ function FlashcardPage() {
 
 
     if (!gameMode) {
+        const countsLabel = (key) => {
+            if (isCountsLoading) return '…';
+            return filterCounts[key] ?? 0;
+        };
+
+        const isFilterEmpty = (key) => {
+            if (isCountsLoading) return false;
+            return (filterCounts[key] ?? 0) === 0;
+        };
+
         return (
             <div className="main-content">
                 <div className="game-setup">
@@ -178,37 +230,32 @@ function FlashcardPage() {
                         <button
                             className={`filter-tab ${filter === 'all' ? 'active' : ''}`}
                             onClick={() => {
-                                if (filterDisabled) return;
                                 setHasChosenScope(true);
                                 setFilter('all');
                             }}
-                            disabled={filterDisabled}
+                            disabled={isFilterEmpty('all')}
                         >
-                            All
+                            All ({countsLabel('all')})
                         </button>
                         <button
                             className={`filter-tab ${filter === 'due' ? 'active' : ''}`}
                             onClick={() => {
-                                if (filterDisabled) return;
                                 setHasChosenScope(true);
                                 setFilter('due');
-                                setSelectedDeckId('');
                             }}
-                            disabled={filterDisabled}
+                            disabled={isFilterEmpty('due')}
                         >
-                            Due
+                            Due ({countsLabel('due')})
                         </button>
                         <button
                             className={`filter-tab ${filter === 'difficult' ? 'active' : ''}`}
                             onClick={() => {
-                                if (filterDisabled) return;
                                 setHasChosenScope(true);
                                 setFilter('difficult');
-                                setSelectedDeckId('');
                             }}
-                            disabled={filterDisabled}
+                            disabled={isFilterEmpty('difficult')}
                         >
-                            Difficult
+                            Difficult ({countsLabel('difficult')})
                         </button>
                     </div>
                     
@@ -221,15 +268,9 @@ function FlashcardPage() {
                                     const next = e.target.value;
                                     setSelectedDeckId(next);
 
-                                    if (next && next !== 'all') {
-                                        setHasChosenScope(true);
-                                        setFilter('all');
-                                    } else {
-                                        setHasChosenScope(true);
-                                    }
+                                    setHasChosenScope(true);
                                 }}
                                 className="deck-dropdown"
-                                disabled={deckDisabled}
                             >
                                 <option value="">No deck</option>
                                 {decks.map(d => (

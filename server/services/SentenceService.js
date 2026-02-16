@@ -136,6 +136,66 @@ class SentenceService {
 		return enriched;
 	}
 
+	async getFlashcardCounts(userId, { deckId = null } = {}) {
+		const include = [];
+		if (deckId) {
+			include.push({
+				model: this.Deck,
+				as: "decks",
+				where: { id: deckId },
+				required: true,
+				through: { attributes: [] },
+			});
+		}
+
+		const sentences = await this.sentence.findAll({
+			where: { creator_id: userId },
+			include,
+		});
+
+		const sentenceIds = sentences.map((s) => s.id);
+		if (sentenceIds.length === 0) {
+			return { all: 0, due: 0, difficult: 0 };
+		}
+
+		const progressRows = await this.UserSentence.findAll({
+			where: {
+				user_id: userId,
+				sentence_id: { [Op.in]: sentenceIds },
+			},
+		});
+
+		const progressBySentenceId = new Map(
+			progressRows.map((p) => [p.sentence_id, p.toJSON()]),
+		);
+
+		const now = new Date();
+		let all = 0;
+		let due = 0;
+		let difficult = 0;
+
+		for (const s of sentences) {
+			all += 1;
+			const progress = progressBySentenceId.get(s.id) || null;
+			if (progress?.difficult) difficult += 1;
+
+			// Keep identical semantics to getFlashcardSentences(filter === 'due')
+			if (!progress?.nextDueAt) {
+				due += 1;
+				continue;
+			}
+			if (progress?.difficult) {
+				due += 1;
+				continue;
+			}
+			if (new Date(progress.nextDueAt) <= now) {
+				due += 1;
+			}
+		}
+
+		return { all, due, difficult };
+	}
+
 	async getAllSentences() {
 		return await this.sentence.findAll({ where: {} }).catch(function (err) {
 			console.error("Failed to get all sentences:", err);
