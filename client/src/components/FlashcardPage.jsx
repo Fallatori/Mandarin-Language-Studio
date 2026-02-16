@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 
 function FlashcardPage() {
+    const navigate = useNavigate();
     const {user} = useAuth();
     const [sentences, setSentences] = useState([]);
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -75,18 +77,26 @@ function FlashcardPage() {
                 <div className="game-setup">
                     <h2>Flashcard Practice</h2>
                     
-                    <div style={{margin: '20px 0'}}>
-                        <label style={{display:'block', marginBottom:'10px', color:'#ccc'}}>Select Deck:</label>
-                        <select 
-                            value={selectedDeckId} 
-                            onChange={(e) => setSelectedDeckId(e.target.value)}
-                            style={{padding:'10px', borderRadius:'4px', background:'#444', color:'white', border:'1px solid #555', width:'200px'}}
-                        >
-                            <option value="all">All Sentences</option>
-                            {decks.map(d => (
-                                <option key={d.id} value={d.id}>{d.name} ({d.sentences.length})</option>
-                            ))}
-                        </select>
+                    <div className="deck-selector-container">
+                        <label className="deck-selector-label">Select Deck:</label>
+                        <div className="deck-selector-controls">
+                            <select 
+                                value={selectedDeckId} 
+                                onChange={(e) => setSelectedDeckId(e.target.value)}
+                                className="deck-dropdown"
+                            >
+                                <option value="all">All Sentences</option>
+                                {decks.map(d => (
+                                    <option key={d.id} value={d.id}>{d.name} ({d.sentences.length})</option>
+                                ))}
+                            </select>
+                            <button 
+                                onClick={() => navigate('/decks')}
+                                className="btn-secondary manage-decks-btn"
+                            >
+                                Manage Decks
+                            </button>
+                        </div>
                     </div>
 
                     <p>Choose your mode:</p>
