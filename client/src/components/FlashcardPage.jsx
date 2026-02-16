@@ -9,18 +9,18 @@ function FlashcardPage() {
     const [isFlipped, setIsFlipped] = useState(false);
     const [gameMode, setGameMode] = useState(null); // 'CN_FRONT' or 'EN_FRONT'
     const [isLoading, setIsLoading] = useState(false);
-    const [groups, setGroups] = useState([]);
-    const [selectedGroupId, setSelectedGroupId] = useState("all");
+    const [decks, setDecks] = useState([]);
+    const [selectedDeckId, setSelectedDeckId] = useState("all");
 
     useEffect(() => {
         if (user) {
-            fetchGroups();
+            fetchDecks();
         }
     }, [user]);
 
-    const fetchGroups = async () => {
-        const res = await axios.get('http://localhost:5001/api/card-groups', { withCredentials: true });
-        setGroups(res.data);
+    const fetchDecks = async () => {
+        const res = await axios.get('http://localhost:5001/api/decks', { withCredentials: true });
+        setDecks(res.data);
     };
     
 
@@ -29,14 +29,14 @@ function FlashcardPage() {
         try {
             let url = 'http://localhost:5001/api/sentences';
             
-            if (selectedGroupId !== "all") {
-                url = `http://localhost:5001/api/card-groups/${selectedGroupId}/sentences`;
+            if (selectedDeckId !== "all") {
+                url = `http://localhost:5001/api/decks/${selectedDeckId}/sentences`;
             }
 
             const res = await axios.get(url, { withCredentials: true });
             
             if (res.data.length === 0) {
-                alert("No sentences in this group!");
+                alert("No sentences in this deck!");
                 setIsLoading(false);
                 return;
             }
@@ -78,13 +78,13 @@ function FlashcardPage() {
                     <div style={{margin: '20px 0'}}>
                         <label style={{display:'block', marginBottom:'10px', color:'#ccc'}}>Select Deck:</label>
                         <select 
-                            value={selectedGroupId} 
-                            onChange={(e) => setSelectedGroupId(e.target.value)}
+                            value={selectedDeckId} 
+                            onChange={(e) => setSelectedDeckId(e.target.value)}
                             style={{padding:'10px', borderRadius:'4px', background:'#444', color:'white', border:'1px solid #555', width:'200px'}}
                         >
                             <option value="all">All Sentences</option>
-                            {groups.map(g => (
-                                <option key={g.id} value={g.id}>{g.name} ({g.sentences.length})</option>
+                            {decks.map(d => (
+                                <option key={d.id} value={d.id}>{d.name} ({d.sentences.length})</option>
                             ))}
                         </select>
                     </div>

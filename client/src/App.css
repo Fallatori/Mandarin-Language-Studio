@@ -659,7 +659,7 @@ h3 {
 	cursor: pointer;
 }
 
-.group-selection-list {
+.deck-selection-list {
 	max-height: 400px;
 	overflow-y: auto;
 	border: 1px solid #444;
@@ -669,14 +669,14 @@ h3 {
 	border-radius: 4px;
 }
 
-.group-selection-item {
+.deck-selection-item {
 	display: flex;
 	gap: 10px;
 	margin-bottom: 5px;
 	align-items: center;
 }
 
-.group-selection-item span {
+.deck-selection-item span {
 	font-size: 1.1rem;
 	color: #eee;
 }

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-function CardGroupPage() {
-    const [groups, setGroups] = useState([]);
+function DeckPage() {
+    const [decks, setDecks] = useState([]);
     const [allSentences, setAllSentences] = useState([]);
     const [isCreating, setIsCreating] = useState(false);
     const [newName, setNewName] = useState("");
@@ -10,15 +10,15 @@ function CardGroupPage() {
     const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
-        fetchGroups();
+        fetchDecks();
         fetchSentences();
     }, []);
 
-    const fetchGroups = async () => {
+    const fetchDecks = async () => {
         setIsLoading(true);
         try {
-            const res = await axios.get('http://localhost:5001/api/card-groups', { withCredentials: true });
-            setGroups(res.data);
+            const res = await axios.get('http://localhost:5001/api/decks', { withCredentials: true });
+            setDecks(res.data);
         } catch (err) {
             console.error(err);
         } finally {
@@ -38,7 +38,7 @@ function CardGroupPage() {
     const handleCreate = async () => {
         if (!newName) return;
         try {
-            await axios.post('http://localhost:5001/api/card-groups', {
+            await axios.post('http://localhost:5001/api/decks', {
                 name: newName,
                 sentenceIds: Array.from(selectedIds)
             }, { withCredentials: true });
@@ -46,17 +46,17 @@ function CardGroupPage() {
             setIsCreating(false);
             setNewName("");
             setSelectedIds(new Set());
-            fetchGroups();
+            fetchDecks();
         } catch(err) {
             console.error(err);
         }
     };
 
     const handleDelete = async (id) => {
-        if(!window.confirm("Delete this group?")) return;
+        if(!window.confirm("Delete this deck?")) return;
         try {
-            await axios.delete(`http://localhost:5001/api/card-groups/${id}`, { withCredentials: true });
-            fetchGroups();
+            await axios.delete(`http://localhost:5001/api/decks/${id}`, { withCredentials: true });
+            fetchDecks();
         } catch (err) {
             console.error(err);
         }
@@ -73,24 +73,25 @@ function CardGroupPage() {
         <div className="main-content">
             <div className="word-page-container">
                 <div className="word-page-header">
-                    <h2>My Card Groups</h2>
-                    <button className="add-btn" onClick={() => setIsCreating(true)}>+ New Group</button>
+                    <h2>My Decks</h2>
+                    <button className="add-btn" onClick={() => setIsCreating(true)}>+ New Deck</button>
                 </div>
 
+                {/* MODAL OVERLAY */}
                 {isCreating && (
                     <div className="modal-overlay">
                         <div className="sentence-form modal-content">
-                            <h3>Create New Group</h3>
+                            <h3>Create New Deck</h3>
                             <input 
                                 className="sentence-input" 
-                                placeholder="Group Name" 
+                                placeholder="Deck Name" 
                                 value={newName} 
                                 onChange={e => setNewName(e.target.value)}
                             />
                             
-                            <div className="group-selection-list">
+                            <div className="deck-selection-list">
                                 {allSentences.map(s => (
-                                    <div key={s.id} className="group-selection-item">
+                                    <div key={s.id} className="deck-selection-item">
                                         <input 
                                             type="checkbox" 
                                             checked={selectedIds.has(s.id)} 
@@ -104,17 +105,17 @@ function CardGroupPage() {
 
                             <div className="preview-actions">
                                 <button className="btn-secondary" onClick={() => setIsCreating(false)}>Cancel</button>
-                                <button className="btn-success" onClick={handleCreate}>Save Group</button>
+                                <button className="btn-success" onClick={handleCreate}>Save Deck</button>
                             </div>
                         </div>
                     </div>
                 )}
 
                 {isLoading ? (
-                    <p>Loading groups...</p>
+                    <p>Loading decks...</p>
                 ) : (
                     <div className="word-grid">
-                        {groups.map(g => (
+                        {decks.map(g => (
                             <div key={g.id} className="word-card">
                                 <div className="word-card-header">
                                     <h3 className="word-hanzi">{g.name}</h3>
@@ -126,7 +127,7 @@ function CardGroupPage() {
                                         style={{width: '100%', marginTop: '10px', padding: '8px'}} 
                                         onClick={() => handleDelete(g.id)}
                                     >
-                                        Delete Group
+                                        Delete Deck
                                     </button>
                                 </div>
                             </div>
@@ -134,9 +135,9 @@ function CardGroupPage() {
                     </div>
                 )}
                 
-                {!isLoading && groups.length === 0 && (
+                {!isLoading && decks.length === 0 && (
                      <div className="no-sentences">
-                        <p>No card groups created yet.</p>
+                        <p>No decks created yet.</p>
                     </div>
                 )}
             </div>
@@ -144,4 +145,4 @@ function CardGroupPage() {
     );
 }
 
-export default CardGroupPage;
+export default DeckPage;

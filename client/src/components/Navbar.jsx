@@ -27,7 +27,7 @@ function Navbar() {
                     <Link to="/" className={isActive('/')}>Sentences</Link>
                     <Link to="/words" className={isActive('/words')}>Word List</Link>
                     <Link to="/cards" className="nav-link">Recap</Link>
-                    <Link to="/groups" className="nav-link">CardGroups</Link>
+                    <Link to="/decks" className="nav-link">Decks</Link>
                 </nav>
             )}
 

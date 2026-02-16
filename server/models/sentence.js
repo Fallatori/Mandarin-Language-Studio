@@ -50,11 +50,11 @@ module.exports = (sequelize) => {
 	Sentence.associate = (models) => {
 		Sentence.belongsToMany(models.Word, { through: models.SentenceWord });
 		Sentence.belongsToMany(models.User, { through: models.UserSentence });
-		Sentence.belongsToMany(models.CardGroup, {
-			through: "CardGroupSentences",
+		Sentence.belongsToMany(models.Deck, {
+			through: "DeckSentences",
 			foreignKey: "sentence_id",
-			otherKey: "card_group_id",
-			as: "groups",
+			otherKey: "deck_id",
+			as: "decks",
 		});
 	};
 

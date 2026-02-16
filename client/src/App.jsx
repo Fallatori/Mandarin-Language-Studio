@@ -5,7 +5,7 @@ import WordPage from './components/WordPage';
 import LoginPage from './components/LoginPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import FlashcardPage from './components/FlashcardPage';
-import CardGroupPage from './components/CardGroupPage';
+import DeckPage from './components/DeckPage';
 import { AuthProvider } from './context/AuthContext';
 
 import './App.css'; 
@@ -37,7 +37,7 @@ function App() {
                                 </ProtectedRoute>
                             } 
                         />
-                        <Route path="/groups" element={<ProtectedRoute><CardGroupPage /></ProtectedRoute>} />
+                        <Route path="/decks" element={<ProtectedRoute><DeckPage /></ProtectedRoute>} />
                     </Routes>
                 </div>
             </div>

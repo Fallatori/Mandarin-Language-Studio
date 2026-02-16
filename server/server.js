@@ -18,7 +18,7 @@ const DB_PATH = path.join(__dirname, "sentences.json");
 const sentencesRouter = require("./routes/sentences");
 const authRouter = require("./routes/auth");
 const wordsRouter = require("./routes/words");
-const cardGroupRoutes = require("./routes/cardGroups");
+const decksRouter = require("./routes/decks");
 
 // --- Middleware ---
 app.use(
@@ -36,7 +36,7 @@ app.use("/uploads", express.static(UPLOADS_DIR));
 app.use("/api/sentences", sentencesRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/words", wordsRouter);
-app.use("/api/card-groups", cardGroupRoutes);
+app.use("/api/decks", decksRouter);
 
 // --- Helper Functions for File DB ---
 const readSentences = () => {
@@ -60,7 +60,7 @@ const writeSentences = (sentences) => {
 	}
 };
 
-// PATCH - Mark a sentence as practiced
+//  Mark a sentence as practiced
 app.patch("/api/sentences/:id/practice", (req, res) => {
 	const { id } = req.params;
 	const sentences = readSentences();
