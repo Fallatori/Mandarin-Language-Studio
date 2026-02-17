@@ -42,6 +42,32 @@ router.post("/", authenticateToken, async (req, res) => {
 	}
 });
 
+router.put("/:id", authenticateToken, async (req, res) => {
+	try {
+		const { name, description, sentenceIds } = req.body;
+		const deck = await db.Deck.findOne({
+			where: { id: req.params.id, creator_id: req.user.id },
+		});
+
+		if (!deck) {
+			return res.status(404).json({ error: "Deck not found" });
+		}
+
+		if (name) deck.name = name;
+		if (description !== undefined) deck.description = description;
+		await deck.save();
+
+		if (sentenceIds) {
+			await deck.setSentences(sentenceIds);
+		}
+
+		res.json(deck);
+	} catch (error) {
+		console.error("Error updating deck:", error);
+		res.status(500).json({ error: "Failed to update deck" });
+	}
+});
+
 router.delete("/:id", authenticateToken, async (req, res) => {
 	try {
 		await db.Deck.destroy({

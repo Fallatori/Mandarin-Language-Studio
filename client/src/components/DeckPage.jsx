@@ -6,10 +6,13 @@ function DeckPage() {
     const navigate = useNavigate();
     const [decks, setDecks] = useState([]);
     const [allSentences, setAllSentences] = useState([]);
-    const [isCreating, setIsCreating] = useState(false);
+
+    const [modalMode, setModalMode] = useState(null); // null | 'create' | 'edit' | 'view'
+    const [selectedDeck, setSelectedDeck] = useState(null);
+    
     const [newName, setNewName] = useState("");
     const [selectedIds, setSelectedIds] = useState(new Set());
-    const [step, setStep] = useState(1);
+    const [step, setStep] = useState(1); 
     const [isLoading, setIsLoading] = useState(false);
     const [lastCheckedId, setLastCheckedId] = useState(null);
 
@@ -33,82 +36,93 @@ function DeckPage() {
             const res = await axios.get('http://localhost:5001/api/sentences', { withCredentials: true });
             setAllSentences(res.data);
         } catch (err) {
-            if (err.response && err.response.status === 401) {
-                navigate('/login');
-            }
             console.error(err);
         }
-    }, [navigate]);
+    }, []);
 
     useEffect(() => {
         fetchDecks();
         fetchSentences();
     }, [fetchDecks, fetchSentences]);
 
+    const openCreateModal = () => {
+        setModalMode('create');
+        setSelectedDeck(null);
+        setNewName("");
+        setSelectedIds(new Set());
+        setStep(1);
+    };
 
-
-    const handleCreate = async (e) => {
-        if (e && e.preventDefault) e.preventDefault();
-        if (!newName) return;
+    const openViewModal = async (deck) => {
+        setModalMode('view');
+        setSelectedDeck({ ...deck, sentences: deck.sentences || [] });
         try {
-            await axios.post('http://localhost:5001/api/decks', {
-                name: newName,
-                sentenceIds: Array.from(selectedIds)
-            }, { withCredentials: true });
-            
-            setIsCreating(false);
-            setNewName("");
-            setSelectedIds(new Set());
-            setStep(1);
-            fetchDecks();
-        } catch(err) {
-            if (err.response && err.response.status === 401) {
-                navigate('/login');
-            }
-            console.error(err);
+            const res = await axios.get(
+                `http://localhost:5001/api/decks/${deck.id}/sentences`,
+                { withCredentials: true },
+            );
+            setSelectedDeck((prev) => ({ ...prev, sentences: res.data }));
+        } catch (err) {
+            console.error('Failed to load deck sentences:', err);
         }
     };
 
-    const handleCancel = useCallback(() => {
-        setIsCreating(false);
+    const openEditModal = () => {
+        if (!selectedDeck) return;
+        setModalMode('edit');
+        setNewName(selectedDeck.name);
+        const existingIds = new Set(selectedDeck.sentences.map(s => s.id));
+        setSelectedIds(existingIds);
+        setStep(1);
+    };
+
+    const handleClose = useCallback(() => {
+        if ((modalMode === 'create' || modalMode === 'edit') && step === 1 && selectedIds.size > 0) {
+            if (!window.confirm("Discard changes?")) return;
+        }
+        
+        setModalMode(null);
+        setSelectedDeck(null);
         setNewName("");
         setSelectedIds(new Set());
-        setLastCheckedId(null);
         setStep(1);
-    }, []);
+    }, [modalMode, step, selectedIds]);
 
-    const attemptClose = useCallback(() => {
-        if (selectedIds.size > 0 && isCreating) {
-            if (window.confirm("You have selected items. Are you sure you want to discard your changes?")) {
-                handleCancel();
+    const handleSave = async (e) => {
+        if (e && e.preventDefault) e.preventDefault();
+        if (!newName) return;
+
+        try {
+            const payload = {
+                name: newName,
+                sentenceIds: Array.from(selectedIds)
+            };
+
+            if (modalMode === 'create') {
+                await axios.post('http://localhost:5001/api/decks', payload, { withCredentials: true });
+            } else if (modalMode === 'edit' && selectedDeck) {
+                await axios.put(`http://localhost:5001/api/decks/${selectedDeck.id}`, payload, { withCredentials: true });
             }
-        } else {
-            handleCancel();
+            
+            handleClose();
+            fetchDecks();
+        } catch (err) {
+            console.error("Failed to save deck", err);
+            if (err.response && err.response.status === 401) navigate('/login');
         }
-    }, [isCreating, selectedIds, handleCancel]);
-
-    useEffect(() => {
-        const handleEsc = (e) => {
-            if (e.key === 'Escape' && isCreating) {
-                attemptClose();
-            }
-        };
-        window.addEventListener('keydown', handleEsc);
-        return () => window.removeEventListener('keydown', handleEsc);
-    }, [isCreating, attemptClose]); 
+    };
 
     const handleDelete = async (id) => {
         if(!window.confirm("Delete this deck?")) return;
         try {
             await axios.delete(`http://localhost:5001/api/decks/${id}`, { withCredentials: true });
+            if (selectedDeck?.id === id) handleClose();
             fetchDecks();
         } catch (err) {
-            if (err.response && err.response.status === 401) {
-                navigate('/login');
-            }
             console.error(err);
         }
     };
+
 
     const toggleSelection = (id, event) => {
         const newSet = new Set(selectedIds);
@@ -121,24 +135,122 @@ function DeckPage() {
             if (start !== -1 && end !== -1) {
                 const low = Math.min(start, end);
                 const high = Math.max(start, end);
-                
                 for (let i = low; i <= high; i++) {
                     const itemId = allSentences[i].id;
-                    if (willCheck) {
-                        newSet.add(itemId);
-                    } else {
-                        newSet.delete(itemId);
-                    }
+                    if (willCheck) newSet.add(itemId);
+                    else newSet.delete(itemId);
                 }
             }
         } else {
             if (willCheck) newSet.add(id);
             else newSet.delete(id);
-            
             setLastCheckedId(id);
         }
-        
         setSelectedIds(newSet);
+    };
+
+    useEffect(() => {
+        const handleEsc = (e) => {
+            if (e.key === 'Escape' && modalMode) handleClose();
+        };
+        window.addEventListener('keydown', handleEsc);
+        return () => window.removeEventListener('keydown', handleEsc);
+    }, [modalMode, handleClose]);
+
+    const renderSelectionList = () => (
+        <>
+            <div className="deck-selection-controls">
+                <button 
+                    className="btn-secondary deck-control-btn" 
+                    onClick={() => setSelectedIds(new Set(allSentences.map(s => s.id)))}
+                >
+                    Select All
+                </button>
+                <button 
+                    className="btn-secondary deck-control-btn" 
+                    onClick={() => setSelectedIds(new Set())}
+                >
+                    Deselect All
+                </button>
+            </div>
+
+            <div className="deck-selection-list">
+                {allSentences.map(s => (
+                    <label 
+                        key={s.id} 
+                        className="deck-selection-item"
+                        onClick={(e) => { e.preventDefault(); toggleSelection(s.id, e); }}
+                    >
+                        <input 
+                            type="checkbox" 
+                            checked={selectedIds.has(s.id)} 
+                            readOnly
+                            className="checkbox-readonly"
+                        />
+                        <span className="deck-item-text">
+                            {s.chineseText} <span className="deck-item-translation">({s.englishTranslation})</span>
+                        </span>
+                    </label>
+                ))}
+            </div>
+            <div className="preview-actions">
+                <button className="btn-secondary" onClick={handleClose}>Cancel</button>
+                <button className="btn-success" onClick={() => setStep(2)}>Next</button>
+            </div>
+        </>
+    );
+
+    const renderNameInput = () => (
+        <div className="deck-step-container">
+            <div className="deck-input-group">
+                <label>Deck Name</label>
+                <input
+                    className="sentence-input deck-name-input"
+                    placeholder="e.g., HSK 1 Vocabulary"
+                    value={newName}
+                    onChange={e => setNewName(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+                    autoFocus
+                />
+            </div>
+            <div className="preview-actions">
+                <button className="btn-secondary" onClick={() => setStep(1)}>Back</button>
+                <button className="btn-success" onClick={handleSave}>
+                    {modalMode === 'create' ? 'Create Deck' : 'Save Changes'}
+                </button>
+            </div>
+        </div>
+    );
+
+    const renderViewModal = () => {
+        if (!selectedDeck) return null;
+        return (
+            <div className="deck-view-container">
+                <h2 className="deck-view-title">{selectedDeck.name}</h2>
+                <p className="deck-view-sub">
+                    {selectedDeck.sentences ? selectedDeck.sentences.length : 0} sentences
+                </p>
+
+                <div className="deck-selection-list deck-selection-list--modal">
+                    {selectedDeck.sentences && selectedDeck.sentences.map(s => (
+                        <div key={s.id} className="deck-selection-item deck-selection-readonly">
+                            <span className="deck-item-text">
+                                {s.chineseText} <span className="deck-item-translation">({s.englishTranslation})</span>
+                            </span>
+                        </div>
+                    ))}
+                    {(!selectedDeck.sentences || selectedDeck.sentences.length === 0) && (
+                        <p className="no-deck-sentences">No sentences in this deck.</p>
+                    )}
+                </div>
+
+                <div className="word-detail-actions">
+                    <button onClick={openEditModal} className="add-btn">Edit Deck</button>
+                    <button onClick={() => handleDelete(selectedDeck.id)} className="btn-delete">Delete</button>
+                    <button onClick={handleClose} className="btn-secondary">Close</button>
+                </div>
+            </div>
+        );
     };
 
     return (
@@ -146,78 +258,20 @@ function DeckPage() {
             <div className="word-page-container">
                 <div className="word-page-header">
                     <h2>My Decks</h2>
-                    <button className="add-btn" onClick={() => setIsCreating(true)}>+ New Deck</button>
+                    <button className="add-btn" onClick={openCreateModal}>+ New Deck</button>
                 </div>
 
                 {/* MODAL OVERLAY */}
-                {isCreating && (
-                    <div className="modal-overlay" onClick={attemptClose}>
+                {modalMode && (
+                    <div className="modal-overlay" onClick={handleClose}>
                         <div className="sentence-form modal-content" onClick={(e) => e.stopPropagation()}>
-                            <h3>Create New Deck {step === 1 ? "- Select Sentences" : "- Name Deck"}</h3>
+                            <button className="modal-close-btn" onClick={handleClose}>×</button>
                             
-                            {step === 1 && (
+                            {modalMode === 'view' ? renderViewModal() : (
                                 <>
-                                    <div className="deck-selection-controls">
-                                        <button 
-                                            className="btn-secondary deck-control-btn" 
-                                            onClick={() => setSelectedIds(new Set(allSentences.map(s => s.id)))}
-                                        >
-                                            Select All
-                                        </button>
-                                        <button 
-                                            className="btn-secondary deck-control-btn" 
-                                            onClick={() => setSelectedIds(new Set())}
-                                        >
-                                            Deselect All
-                                        </button>
-                                    </div>
-
-                                    <div className="deck-selection-list">
-                                        {allSentences.map(s => (
-                                            <label 
-                                                key={s.id} 
-                                                className="deck-selection-item"
-                                                onClick={(e) => {
-                                                    e.preventDefault();
-                                                    toggleSelection(s.id, e);
-                                                }}
-                                            >
-                                                <input 
-                                                    type="checkbox" 
-                                                    checked={selectedIds.has(s.id)} 
-                                                    readOnly
-                                                    style={{pointerEvents: 'none'}}
-                                                />
-                                                <span style={{color: '#ddd'}}>{s.chineseText} <span style={{color: '#888', fontSize: '0.9em'}}>({s.englishTranslation})</span></span>
-                                            </label>
-                                        ))}
-                                    </div>
-                                    <div className="preview-actions">
-                                        <button className="btn-secondary" onClick={handleCancel}>Cancel</button>
-                                        <button className="btn-success" onClick={() => setStep(2)}>Next</button>
-                                    </div>
+                                    <h3>{modalMode === 'create' ? 'Create New Deck' : 'Edit Deck'}</h3>
+                                    {step === 1 ? renderSelectionList() : renderNameInput()}
                                 </>
-                            )}
-
-                            {step === 2 && (
-                                <div className="deck-step-container">
-                                    <div className="deck-input-group">
-                                        <label>Deck Name</label>
-                                        <input 
-                                            className="sentence-input deck-name-input" 
-                                            placeholder="e.g., HSK 1 Vocabulary" 
-                                            value={newName} 
-                                            onChange={e => setNewName(e.target.value)}
-                                            onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
-                                            autoFocus
-                                        />
-                                    </div>
-                                    
-                                    <div className="preview-actions">
-                                        <button className="btn-secondary" onClick={() => setStep(1)}>Back</button>
-                                        <button className="btn-success" onClick={handleCreate}>Create Deck</button>
-                                    </div>
-                                </div>
                             )}
                         </div>
                     </div>
@@ -227,20 +281,19 @@ function DeckPage() {
                     <p>Loading decks...</p>
                 ) : (
                     <div className="word-grid">
-                        {decks.map(g => (
-                            <div key={g.id} className="word-card">
+                        {decks.map(d => (
+                            <div 
+                                key={d.id} 
+                                className="word-card" 
+                                onClick={() => openViewModal(d)}
+                            >
                                 <div className="word-card-header">
-                                    <h3 className="word-hanzi">{g.name}</h3>
+                                    <h3 className="word-hanzi">{d.name}</h3>
                                 </div>
                                 <div className="word-card-body">
-                                    <p className="word-pinyin" style={{marginBottom: '10px'}}>{g.sentences.length} sentences</p>
-                                    <button 
-                                        className="btn-delete-all" 
-                                        style={{width: '100%', marginTop: '10px', padding: '8px'}} 
-                                        onClick={() => handleDelete(g.id)}
-                                    >
-                                        Delete Deck
-                                    </button>
+                                    <p className="word-pinyin" style={{marginBottom: '10px'}}>
+                                        {d.sentences ? d.sentences.length : 0} sentences
+                                    </p>
                                 </div>
                             </div>
                         ))}
@@ -248,9 +301,7 @@ function DeckPage() {
                 )}
                 
                 {!isLoading && decks.length === 0 && (
-                     <div className="no-sentences">
-                        <p>No decks created yet.</p>
-                    </div>
+                     <div className="no-sentences"><p>No decks created yet.</p></div>
                 )}
             </div>
         </div>

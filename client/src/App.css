@@ -292,6 +292,44 @@ h3 {
 	overflow-y: auto;
 }
 
+/* Deck modal / selection styles */
+.checkbox-readonly {
+	pointer-events: none;
+}
+
+.deck-item-text {
+	color: #ddd;
+}
+
+.deck-item-translation {
+	color: #888;
+	font-size: 0.9em;
+}
+
+.deck-view-title {
+	color: white;
+	margin-top: 0;
+}
+
+.deck-view-sub {
+	color: #888;
+	margin-bottom: 20px;
+}
+
+.no-deck-sentences {
+	color: #666;
+	text-align: center;
+}
+
+.deck-selection-list--modal {
+	max-height: 300px;
+	overflow: auto;
+}
+
+.deck-selection-readonly {
+	cursor: default;
+}
+
 .bulk-error-item {
 	font-size: 0.9em;
 	color: #ffcccc;
@@ -1421,4 +1459,18 @@ h3 {
 .game-header {
 	text-align: center;
 	margin-bottom: 20px;
+}
+
+.deck-view-container {
+	text-align: center;
+}
+
+.deck-view-container .deck-selection-list {
+	margin-bottom: 20px;
+	background: #1a1a1a;
+}
+
+.word-detail-actions {
+	margin-top: 20px;
+	justify-content: center;
 }
