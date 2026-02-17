@@ -1474,3 +1474,56 @@ h3 {
 	margin-top: 20px;
 	justify-content: center;
 }
+
+/* Deck Modal Toolbar */
+.deck-toolbar {
+	display: flex;
+	justify-content: space-between;
+	gap: 10px;
+	margin-bottom: 10px;
+}
+
+.deck-search-input {
+	flex: 1;
+	padding: 8px;
+	border-radius: 4px;
+	border: 1px solid #555;
+	background: #333;
+	color: white;
+}
+
+.deck-selection-actions {
+	display: flex;
+	gap: 5px;
+}
+
+.btn-small {
+	padding: 5px 10px;
+	font-size: 0.85em;
+	height: 100%;
+}
+
+/* Pagination */
+.pagination-controls {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	gap: 15px;
+	margin-top: 10px;
+	padding-top: 10px;
+	border-top: 1px solid #333;
+}
+
+.pagination-info {
+	color: #888;
+	font-size: 0.9em;
+}
+
+/* DeckPage spacing helpers (moved from inline styles) */
+.preview-actions--spaced {
+	margin-top: 15px;
+}
+
+.word-pinyin {
+	margin-bottom: 10px;
+}

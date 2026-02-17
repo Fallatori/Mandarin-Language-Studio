@@ -16,6 +16,10 @@ function DeckPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [lastCheckedId, setLastCheckedId] = useState(null);
 
+    const [searchTerm, setSearchTerm] = useState("");
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 20;
+
     const fetchDecks = useCallback(async () => {
         setIsLoading(true);
         try {
@@ -51,6 +55,8 @@ function DeckPage() {
         setNewName("");
         setSelectedIds(new Set());
         setStep(1);
+        setSearchTerm("");
+        setCurrentPage(1);
     };
 
     const openViewModal = async (deck) => {
@@ -74,6 +80,8 @@ function DeckPage() {
         const existingIds = new Set(selectedDeck.sentences.map(s => s.id));
         setSelectedIds(existingIds);
         setStep(1);
+        setSearchTerm("");
+        setCurrentPage(1);
     };
 
     const handleClose = useCallback(() => {
@@ -86,6 +94,8 @@ function DeckPage() {
         setNewName("");
         setSelectedIds(new Set());
         setStep(1);
+        setSearchTerm("");
+        setCurrentPage(1);
     }, [modalMode, step, selectedIds]);
 
     const handleSave = async (e) => {
@@ -149,6 +159,34 @@ function DeckPage() {
         setSelectedIds(newSet);
     };
 
+    const filteredSentences = allSentences.filter(s => {
+        if (!searchTerm) return true;
+        const searchLower = searchTerm.toLowerCase();
+        return (
+            s.chineseText.includes(searchTerm) || 
+            s.englishTranslation.toLowerCase().includes(searchLower) ||
+            s.pinyin.toLowerCase().includes(searchLower)
+        );
+    });
+
+    const totalPages = Math.ceil(filteredSentences.length / ITEMS_PER_PAGE);
+    const paginatedSentences = filteredSentences.slice(
+        (currentPage - 1) * ITEMS_PER_PAGE,
+        currentPage * ITEMS_PER_PAGE
+    );
+
+    const handleSelectAllFiltered = () => {
+        const newSet = new Set(selectedIds);
+        filteredSentences.forEach(s => newSet.add(s.id));
+        setSelectedIds(newSet);
+    };
+
+    const handleDeselectAllFiltered = () => {
+        const newSet = new Set(selectedIds);
+        filteredSentences.forEach(s => newSet.delete(s.id));
+        setSelectedIds(newSet);
+    };
+
     useEffect(() => {
         const handleEsc = (e) => {
             if (e.key === 'Escape' && modalMode) handleClose();
@@ -159,23 +197,37 @@ function DeckPage() {
 
     const renderSelectionList = () => (
         <>
-            <div className="deck-selection-controls">
-                <button 
-                    className="btn-secondary deck-control-btn" 
-                    onClick={() => setSelectedIds(new Set(allSentences.map(s => s.id)))}
-                >
-                    Select All
-                </button>
-                <button 
-                    className="btn-secondary deck-control-btn" 
-                    onClick={() => setSelectedIds(new Set())}
-                >
-                    Deselect All
-                </button>
+            <div className="deck-toolbar">
+                <input 
+                    type="text" 
+                    placeholder="Search sentences..." 
+                    value={searchTerm}
+                    onChange={(e) => {
+                        setSearchTerm(e.target.value);
+                        setCurrentPage(1); 
+                    }}
+                    className="deck-search-input"
+                />
+                <div className="deck-selection-actions">
+                    <button 
+                        className="btn-secondary btn-small" 
+                        onClick={handleSelectAllFiltered}
+                        title="Select all matched by search"
+                    >
+                        Select All
+                    </button>
+                    <button 
+                        className="btn-secondary btn-small" 
+                        onClick={handleDeselectAllFiltered}
+                        title="Deselect all matched by search"
+                    >
+                        Clear
+                    </button>
+                </div>
             </div>
 
             <div className="deck-selection-list">
-                {allSentences.map(s => (
+                {paginatedSentences.map(s => (
                     <label 
                         key={s.id} 
                         className="deck-selection-item"
@@ -192,10 +244,38 @@ function DeckPage() {
                         </span>
                     </label>
                 ))}
+                {paginatedSentences.length === 0 && (
+                    <p className="no-deck-sentences">No sentences found.</p>
+                )}
             </div>
-            <div className="preview-actions">
+
+            {totalPages > 1 && (
+                <div className="pagination-controls">
+                    <button 
+                        className="btn-secondary btn-small" 
+                        disabled={currentPage === 1}
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    >
+                        Previous
+                    </button>
+                    <span className="pagination-info">
+                        Page {currentPage} of {totalPages}
+                    </span>
+                    <button 
+                        className="btn-secondary btn-small" 
+                        disabled={currentPage === totalPages}
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    >
+                        Next
+                    </button>
+                </div>
+            )}
+
+            <div className="preview-actions preview-actions--spaced">
                 <button className="btn-secondary" onClick={handleClose}>Cancel</button>
-                <button className="btn-success" onClick={() => setStep(2)}>Next</button>
+                <button className="btn-success" onClick={() => setStep(2)}>
+                    Next ({selectedIds.size} selected)
+                </button>
             </div>
         </>
     );
