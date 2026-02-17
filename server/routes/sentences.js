@@ -146,19 +146,14 @@ router.post("/translate", async (req, res) => {
 
 router.get("/", async (req, res) => {
 	try {
-		// const sentences = await sentenceService.getAllSentences();
-		const { filter } = req.query;
-		const sentences = await sentenceService.getSentencesByUser(req.user.id, {
-			filter,
+		const { filter, page, limit } = req.query;
+		const result = await sentenceService.getSentencesByUser(req.user.id, {
+			filter: filter || "all",
+			page: page || 1,
+			limit: limit || 20,
 		});
 
-		if (sentences == null) {
-			return res
-				.status(404)
-				.json({ message: "No sentences found for this user." });
-		}
-
-		res.json(sentences);
+		res.json(result);
 	} catch (error) {
 		console.error("Error fetching sentences:", error);
 		res.status(500).json({ message: "Failed to fetch sentences." });
@@ -168,13 +163,17 @@ router.get("/", async (req, res) => {
 router.get("/flashcards", async (req, res) => {
 	try {
 		const { deckId, filter } = req.query;
-		const sentences = await sentenceService.getFlashcardSentences(req.user.id, {
+
+		const result = await sentenceService.getFlashcardSentences(req.user.id, {
 			deckId: deckId && deckId !== "all" ? deckId : null,
 			filter: filter || "all",
+			limit: 1000,
 		});
-		res.json(sentences);
+
+		res.json(result.sentences);
 	} catch (error) {
 		console.error("Flashcards fetch error:", error);
+
 		res.status(500).json({ message: "Failed to load flashcards." });
 	}
 });

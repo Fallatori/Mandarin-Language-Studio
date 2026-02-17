@@ -1566,3 +1566,24 @@ h3 {
 	color: white;
 	border-color: #0d6efd;
 }
+
+.no-sentences-message {
+	color: #888;
+	font-style: italic;
+}
+
+.load-more-container {
+	text-align: center;
+	margin-top: 20px;
+	margin-bottom: 40px;
+}
+
+.load-more-btn {
+	width: 200px;
+	padding: 10px;
+}
+
+.deck-modal-load-more {
+	grid-column: 1 / -1;
+	margin-top: 10px;
+}

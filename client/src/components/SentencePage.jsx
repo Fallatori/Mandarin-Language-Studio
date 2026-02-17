@@ -13,33 +13,46 @@ function SentencePage() {
     const [sentences, setSentences] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
-    const [sortOrder, setSortOrder] = useState('desc');
+    const [sortOrder] = useState('desc');
     const [filter, setFilter] = useState('all');
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState('single'); // 'single' or 'bulk'
 
-    const fetchSentences = useCallback(async () => {
+    useEffect(() => {
+        setSentences([]);
+        setPage(1);
+        setHasMore(true);
+    }, [filter]);
+
+    const fetchSentences = useCallback(async (pageNum) => {
         setIsLoading(true);
         setError(null);
         try {
-            const response = await axios.get(`${API_URL}?filter=${filter}`, { withCredentials: true });
-            const sorted = sortSentences(response.data, sortOrder);
-            setSentences(sorted);
+            const response = await axios.get(`${API_URL}?filter=${filter}&page=${pageNum}&limit=20`, { withCredentials: true });
+            
+            const { sentences: newSentences, hasMore: moreAvailable } = response.data;
+
+            setSentences(prev => {
+                const updatedList = pageNum === 1 ? newSentences : [...prev, ...newSentences];
+                return sortSentences(updatedList, sortOrder);
+            });
+            setHasMore(moreAvailable);
         } catch (err) {
             console.error("Failed to fetch sentences:", err);
             if (err.response && err.response.status === 401) {
                 navigate('/login');
             }
             setError("Failed to load sentences. Please try again later.");
-            setSentences([]); 
         } finally {
             setIsLoading(false);
         }
-    }, [sortOrder, filter]);
+    }, [sortOrder, filter, navigate]);
 
     useEffect(() => {
-        fetchSentences();
-    }, [fetchSentences]);
+        fetchSentences(page);
+    }, [fetchSentences, page]);
 
     const sortSentences = (sentencesToSort, order) => {
         return [...sentencesToSort].sort((a, b) => {
@@ -85,6 +98,10 @@ function SentencePage() {
     const handleOpenModal = (mode) => {
         setModalMode(mode);
         setIsModalOpen(true);
+    };
+
+    const handleLoadMore = () => {
+        setPage(prev => prev + 1);
     };
 
     const markAsPracticed = async (id) => {
@@ -173,13 +190,32 @@ function SentencePage() {
             )}
             
             <div className="sentence-list-container full-width">
-                {isLoading && sentences.length === 0 && <p>Loading sentences...</p>}
+                {sentences.length === 0 && !isLoading && (
+                    <p className="no-sentences-message">
+                        {filter === 'all' ? 'No sentences added yet.' : `No ${filter} sentences found.`}
+                    </p>
+                )}
+
                 <SentenceList
                     sentences={sentences}
                     onMarkAsPracticed={markAsPracticed}
                     onDeleteSentence={deleteSentence}
                     audioBaseUrl={AUDIO_BASE_URL}
                 />
+
+                {hasMore && sentences.length > 0 && (
+                    <div className="load-more-container">
+                        <button 
+                            onClick={handleLoadMore} 
+                            disabled={isLoading}
+                            className="btn-secondary load-more-btn"
+                        >
+                            {isLoading ? 'Loading...' : 'Load More'}
+                        </button>
+                    </div>
+                )}
+                
+                {isLoading && page === 1 && <p>Loading sentences...</p>}
             </div>
         </div>
     );

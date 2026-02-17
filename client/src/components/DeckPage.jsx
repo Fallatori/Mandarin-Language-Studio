@@ -17,7 +17,10 @@ function DeckPage() {
     const [lastCheckedId, setLastCheckedId] = useState(null);
 
     const [searchTerm, setSearchTerm] = useState("");
-    const [currentPage, setCurrentPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+    const [sentencePage, setSentencePage] = useState(1);
+    const [isLoadingSentences, setIsLoadingSentences] = useState(false);
+
     const ITEMS_PER_PAGE = 20;
 
     const fetchDecks = useCallback(async () => {
@@ -35,19 +38,38 @@ function DeckPage() {
         }
     }, [navigate]);
 
-    const fetchSentences = useCallback(async () => {
+    const fetchSentences = useCallback(async (pageNum) => {
+        setIsLoadingSentences(true);
         try {
-            const res = await axios.get('http://localhost:5001/api/sentences', { withCredentials: true });
-            setAllSentences(res.data);
+            const res = await axios.get(`http://localhost:5001/api/sentences?page=${pageNum}&limit=20&filter=all`, { withCredentials: true });
+            
+            const newSentences = res.data.sentences || [];
+            
+            setAllSentences(prev => {
+                if (pageNum === 1) return newSentences;
+                const existingIds = new Set(prev.map(s => s.id));
+                const uniqueNew = newSentences.filter(s => !existingIds.has(s.id));
+                return [...prev, ...uniqueNew];
+            });
+            
+            setHasMore(res.data.hasMore);
         } catch (err) {
             console.error(err);
+        } finally {
+            setIsLoadingSentences(false);
         }
     }, []);
 
     useEffect(() => {
         fetchDecks();
-        fetchSentences();
+        fetchSentences(1);
     }, [fetchDecks, fetchSentences]);
+
+    const handleLoadMore = () => {
+        const next = sentencePage + 1;
+        setSentencePage(next);
+        fetchSentences(next);
+    };
 
     const openCreateModal = () => {
         setModalMode('create');
@@ -56,7 +78,6 @@ function DeckPage() {
         setSelectedIds(new Set());
         setStep(1);
         setSearchTerm("");
-        setCurrentPage(1);
     };
 
     const openViewModal = async (deck) => {
@@ -81,7 +102,6 @@ function DeckPage() {
         setSelectedIds(existingIds);
         setStep(1);
         setSearchTerm("");
-        setCurrentPage(1);
     };
 
     const handleClose = useCallback(() => {
@@ -95,7 +115,6 @@ function DeckPage() {
         setSelectedIds(new Set());
         setStep(1);
         setSearchTerm("");
-        setCurrentPage(1);
     }, [modalMode, step, selectedIds]);
 
     const handleSave = async (e) => {
@@ -159,21 +178,17 @@ function DeckPage() {
         setSelectedIds(newSet);
     };
 
-    const filteredSentences = allSentences.filter(s => {
+    const filteredSentences = (allSentences || []).filter(s => {
         if (!searchTerm) return true;
         const searchLower = searchTerm.toLowerCase();
         return (
-            s.chineseText.includes(searchTerm) || 
-            s.englishTranslation.toLowerCase().includes(searchLower) ||
-            s.pinyin.toLowerCase().includes(searchLower)
+            (s.chineseText && s.chineseText.includes(searchTerm)) || 
+            (s.englishTranslation && s.englishTranslation.toLowerCase().includes(searchLower)) ||
+            (s.pinyin && s.pinyin.toLowerCase().includes(searchLower))
         );
     });
 
-    const totalPages = Math.ceil(filteredSentences.length / ITEMS_PER_PAGE);
-    const paginatedSentences = filteredSentences.slice(
-        (currentPage - 1) * ITEMS_PER_PAGE,
-        currentPage * ITEMS_PER_PAGE
-    );
+    const paginatedSentences = filteredSentences;
 
     const handleSelectAllFiltered = () => {
         const newSet = new Set(selectedIds);
@@ -204,7 +219,6 @@ function DeckPage() {
                     value={searchTerm}
                     onChange={(e) => {
                         setSearchTerm(e.target.value);
-                        setCurrentPage(1); 
                     }}
                     className="deck-search-input"
                 />
@@ -244,32 +258,23 @@ function DeckPage() {
                         </span>
                     </label>
                 ))}
+                
                 {paginatedSentences.length === 0 && (
                     <p className="no-deck-sentences">No sentences found.</p>
                 )}
-            </div>
 
-            {totalPages > 1 && (
-                <div className="pagination-controls">
-                    <button 
-                        className="btn-secondary btn-small" 
-                        disabled={currentPage === 1}
-                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    >
-                        Previous
-                    </button>
-                    <span className="pagination-info">
-                        Page {currentPage} of {totalPages}
-                    </span>
-                    <button 
-                        className="btn-secondary btn-small" 
-                        disabled={currentPage === totalPages}
-                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    >
-                        Next
-                    </button>
-                </div>
-            )}
+                {hasMore && (
+                 <div className="load-more-container deck-modal-load-more">
+                     <button 
+                         onClick={handleLoadMore} 
+                         disabled={isLoadingSentences}
+                         className="btn-secondary load-more-btn"
+                     >
+                         {isLoadingSentences ? 'Loading...' : 'Load More Sentences'}
+                     </button>
+                 </div>
+                )}
+            </div>
 
             <div className="preview-actions preview-actions--spaced">
                 <button className="btn-secondary" onClick={handleClose}>Cancel</button>

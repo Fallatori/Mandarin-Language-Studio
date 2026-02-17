@@ -84,7 +84,10 @@ class SentenceService {
 		return progress;
 	}
 
-	async getFlashcardSentences(userId, { deckId = null, filter = "all" } = {}) {
+	async getFlashcardSentences(
+		userId,
+		{ deckId = null, filter = "all", page = 1, limit = 50 } = {},
+	) {
 		const include = [];
 		if (deckId) {
 			include.push({
@@ -96,9 +99,14 @@ class SentenceService {
 			});
 		}
 
-		const sentences = await this.sentence.findAll({
+		const offset = (page - 1) * limit;
+
+		const { count, rows: sentences } = await this.sentence.findAndCountAll({
 			where: { creator_id: userId },
 			include,
+			limit: parseInt(limit),
+			offset: parseInt(offset),
+			order: [["createdAt", "DESC"]], // Default order
 		});
 
 		const sentenceIds = sentences.map((s) => s.id);
@@ -114,17 +122,15 @@ class SentenceService {
 		);
 
 		const now = new Date();
-		const enriched = sentences.map((s) => {
+		let enriched = sentences.map((s) => {
 			const json = s.toJSON();
 			return { ...json, progress: progressBySentenceId.get(s.id) || null };
 		});
 
 		if (filter === "difficult") {
-			return enriched.filter((s) => s.progress?.difficult);
-		}
-
-		if (filter === "due") {
-			return enriched.filter((s) => {
+			enriched = enriched.filter((s) => s.progress?.difficult);
+		} else if (filter === "due") {
+			enriched = enriched.filter((s) => {
 				// Never practiced => due
 				if (!s.progress?.nextDueAt) return true;
 				// Difficult is always eligible for "due" sessions
@@ -133,7 +139,12 @@ class SentenceService {
 			});
 		}
 
-		return enriched;
+		return {
+			sentences: enriched,
+			total: count,
+			page: parseInt(page),
+			hasMore: offset + sentences.length < count,
+		};
 	}
 
 	async getFlashcardCounts(userId, { deckId = null } = {}) {
@@ -202,8 +213,11 @@ class SentenceService {
 		});
 	}
 
-	async getSentencesByUser(userId, { filter = "all" } = {}) {
-		return await this.getFlashcardSentences(userId, { filter });
+	async getSentencesByUser(
+		userId,
+		{ filter = "all", page = 1, limit = 50 } = {},
+	) {
+		return await this.getFlashcardSentences(userId, { filter, page, limit });
 	}
 
 	async getSentenceByName(name, userId = null) {
