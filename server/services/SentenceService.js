@@ -202,12 +202,8 @@ class SentenceService {
 		});
 	}
 
-	async getSentencesByUser(userId) {
-		return await this.sentence
-			.findAll({ where: { creator_id: userId } })
-			.catch(function (err) {
-				console.error("Failed to get sentences by user:", err);
-			});
+	async getSentencesByUser(userId, { filter = "all" } = {}) {
+		return await this.getFlashcardSentences(userId, { filter });
 	}
 
 	async getSentenceByName(name, userId = null) {

@@ -147,7 +147,10 @@ router.post("/translate", async (req, res) => {
 router.get("/", async (req, res) => {
 	try {
 		// const sentences = await sentenceService.getAllSentences();
-		const sentences = await sentenceService.getSentencesByUser(req.user.id);
+		const { filter } = req.query;
+		const sentences = await sentenceService.getSentencesByUser(req.user.id, {
+			filter,
+		});
 
 		if (sentences == null) {
 			return res

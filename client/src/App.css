@@ -478,6 +478,18 @@ h3 {
 	cursor: not-allowed;
 }
 
+.sentence-form button.btn-delete,
+.modal-content .btn-delete {
+	background-color: #d32f2f;
+	color: white;
+	border: none;
+}
+
+.sentence-form button.btn-delete:hover,
+.modal-content .btn-delete:hover {
+	background-color: #b71c1c;
+}
+
 /* List Controls */
 .sentence-list-controls {
 	display: flex;
@@ -1519,11 +1531,38 @@ h3 {
 	font-size: 0.9em;
 }
 
-/* DeckPage spacing helpers (moved from inline styles) */
 .preview-actions--spaced {
 	margin-top: 15px;
 }
 
 .word-pinyin {
 	margin-bottom: 10px;
+}
+
+.filter-controls {
+	margin-bottom: 20px;
+	display: flex;
+	gap: 10px;
+}
+
+.filter-btn {
+	background-color: #333;
+	color: #ccc;
+	border: 1px solid #444;
+	padding: 8px 16px;
+	border-radius: 4px;
+	cursor: pointer;
+	transition: all 0.2s;
+	font-size: 0.9em;
+}
+
+.filter-btn:hover {
+	background-color: #444;
+	color: #fff;
+}
+
+.filter-btn.active {
+	background-color: #0d6efd;
+	color: white;
+	border-color: #0d6efd;
 }

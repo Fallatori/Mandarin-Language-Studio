@@ -14,6 +14,7 @@ function SentencePage() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
     const [sortOrder, setSortOrder] = useState('desc');
+    const [filter, setFilter] = useState('all');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState('single'); // 'single' or 'bulk'
 
@@ -21,7 +22,7 @@ function SentencePage() {
         setIsLoading(true);
         setError(null);
         try {
-            const response = await axios.get(API_URL, { withCredentials: true });
+            const response = await axios.get(`${API_URL}?filter=${filter}`, { withCredentials: true });
             const sorted = sortSentences(response.data, sortOrder);
             setSentences(sorted);
         } catch (err) {
@@ -34,7 +35,7 @@ function SentencePage() {
         } finally {
             setIsLoading(false);
         }
-    }, [sortOrder]);
+    }, [sortOrder, filter]);
 
     useEffect(() => {
         fetchSentences();
@@ -132,6 +133,27 @@ function SentencePage() {
                     <button className="add-btn btn-bulk" onClick={() => handleOpenModal('bulk')}>Bulk Upload</button>
                     <button className="add-btn btn-delete" onClick={deleteAllSentences}>Delete All</button>
                 </div>
+            </div>
+
+            <div className="filter-controls">
+                <button 
+                    className={`filter-btn ${filter === 'all' ? 'active' : ''}`}
+                    onClick={() => setFilter('all')}
+                >
+                    All Sentences
+                </button>
+                <button 
+                    className={`filter-btn ${filter === 'due' ? 'active' : ''}`}
+                    onClick={() => setFilter('due')}
+                >
+                    Due for Review
+                </button>
+                <button 
+                    className={`filter-btn ${filter === 'difficult' ? 'active' : ''}`}
+                    onClick={() => setFilter('difficult')}
+                >
+                    Difficult
+                </button>
             </div>
 
             {isModalOpen && (
