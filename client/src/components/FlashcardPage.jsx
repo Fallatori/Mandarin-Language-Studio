@@ -15,7 +15,7 @@ function FlashcardPage() {
     const [selectedDeckId, setSelectedDeckId] = useState("");
     const [filter, setFilter] = useState("all"); // all | due | difficult
     const [sessionFilter, setSessionFilter] = useState("all");
-    const [hasChosenScope, setHasChosenScope] = useState(false);
+    const [hasChosenScope, setHasChosenScope] = useState(true);
 
     const [filterCounts, setFilterCounts] = useState({ all: 0, due: 0, difficult: 0 });
     const [isCountsLoading, setIsCountsLoading] = useState(false);
@@ -280,7 +280,7 @@ function FlashcardPage() {
                                 }}
                                 className="deck-dropdown"
                             >
-                                <option value="">No deck</option>
+                                <option value="">All Cards</option>
                                 {decks.map(d => (
                                     <option key={d.id} value={d.id}>{d.name} ({d.sentences.length})</option>
                                 ))}
