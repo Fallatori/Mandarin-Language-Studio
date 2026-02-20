@@ -1,0 +1,14 @@
+<svg width="120" height="120" viewBox="0 0 120 120"
+    xmlns="http://www.w3.org/2000/svg">
+
+    <circle cx="60" cy="60" r="54" fill="#F4C430"/>
+
+    <text x="60" y="55" text-anchor="middle" font-family="KaiTi, STKaiti, serif" font-size="34" font-weight="bold" fill="#111">
+        造
+    </text>
+
+    <text x="60" y="90" text-anchor="middle" font-family="KaiTi, STKaiti, serif" font-size="34" font-weight="bold" fill="#111">
+        句
+    </text>
+
+</svg>
