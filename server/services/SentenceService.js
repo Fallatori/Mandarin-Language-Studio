@@ -88,9 +88,19 @@ class SentenceService {
 		userId,
 		{ deckId = null, filter = "all", page = 1, limit = 50 } = {},
 	) {
-		const include = [];
+		const offset = (page - 1) * limit;
+
+		const queryOptions = {
+			limit: parseInt(limit),
+			offset: parseInt(offset),
+			order: [["createdAt", "DESC"]],
+			where: { creator_id: userId },
+			include: [],
+			distinct: true,
+		};
+
 		if (deckId) {
-			include.push({
+			queryOptions.include.push({
 				model: this.Deck,
 				as: "decks",
 				where: { id: deckId },
@@ -99,45 +109,56 @@ class SentenceService {
 			});
 		}
 
-		const offset = (page - 1) * limit;
+		if (filter === "difficult") {
+			const difficultRecords = await this.UserSentence.findAll({
+				where: {
+					user_id: userId,
+					difficult: true,
+				},
+				attributes: ["sentence_id"],
+			});
+			const difficultIds = difficultRecords.map((r) => r.sentence_id);
 
-		const { count, rows: sentences } = await this.sentence.findAndCountAll({
-			where: { creator_id: userId },
-			include,
-			limit: parseInt(limit),
-			offset: parseInt(offset),
-			order: [["createdAt", "DESC"]], // Default order
-		});
+			queryOptions.where.id = { [Op.in]: difficultIds };
+		} else if (filter === "due") {
+			const notDueRecords = await this.UserSentence.findAll({
+				where: {
+					user_id: userId,
+					nextDueAt: { [Op.gt]: new Date() },
+					difficult: false,
+				},
+				attributes: ["sentence_id"],
+			});
+
+			const notDueIds = notDueRecords.map((r) => r.sentence_id);
+
+			if (notDueIds.length > 0) {
+				queryOptions.where.id = { [Op.notIn]: notDueIds };
+			}
+		}
+
+		const { count, rows: sentences } =
+			await this.sentence.findAndCountAll(queryOptions);
 
 		const sentenceIds = sentences.map((s) => s.id);
-		const progressRows = await this.UserSentence.findAll({
-			where: {
-				user_id: userId,
-				sentence_id: { [Op.in]: sentenceIds },
-			},
-		});
+		let progressBySentenceId = new Map();
 
-		const progressBySentenceId = new Map(
-			progressRows.map((p) => [p.sentence_id, p.toJSON()]),
-		);
+		if (sentenceIds.length > 0) {
+			const progressRows = await this.UserSentence.findAll({
+				where: {
+					user_id: userId,
+					sentence_id: { [Op.in]: sentenceIds },
+				},
+			});
+			progressBySentenceId = new Map(
+				progressRows.map((p) => [p.sentence_id, p.toJSON()]),
+			);
+		}
 
-		const now = new Date();
-		let enriched = sentences.map((s) => {
+		const enriched = sentences.map((s) => {
 			const json = s.toJSON();
 			return { ...json, progress: progressBySentenceId.get(s.id) || null };
 		});
-
-		if (filter === "difficult") {
-			enriched = enriched.filter((s) => s.progress?.difficult);
-		} else if (filter === "due") {
-			enriched = enriched.filter((s) => {
-				// Never practiced => due
-				if (!s.progress?.nextDueAt) return true;
-				// Difficult is always eligible for "due" sessions
-				if (s.progress?.difficult) return true;
-				return new Date(s.progress.nextDueAt) <= now;
-			});
-		}
 
 		return {
 			sentences: enriched,

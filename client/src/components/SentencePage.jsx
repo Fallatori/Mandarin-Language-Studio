@@ -13,7 +13,7 @@ function SentencePage() {
     const [sentences, setSentences] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
-    const [filter, setFilter] = useState('all');
+    const [filter, setFilter] = useState('all'); // 'all', 'due', 'difficult'
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -27,26 +27,29 @@ function SentencePage() {
         setHasMore(true);
     }, [filter]);
 
-    const fetchSentences = useCallback(async (pageNum) => {
+    const fetchSentences = useCallback(async (pageNum, currentFilter) => {
         setIsLoading(true);
         setError(null);
         try {
-            const response = await axios.get(`${API_URL}?filter=${filter}&page=${pageNum}&limit=20`, { withCredentials: true });
+            const response = await axios.get(`${API_URL}?filter=${currentFilter}&page=${pageNum}&limit=20`, { withCredentials: true });
             const { sentences: newSentences, hasMore: moreAvailable } = response.data;
 
-            setSentences(prev => pageNum === 1 ? newSentences : [...prev, ...newSentences]);
+            setSentences(prev => {
+                return pageNum === 1 ? newSentences : [...prev, ...newSentences];
+            });
             setHasMore(moreAvailable);
         } catch (err) {
-            console.error(err);
+            console.error(err); 
              if (err.response && err.response.status === 401) navigate('/login');
         } finally {
             setIsLoading(false);
         }
-    }, [filter, navigate]);
+    }, [navigate]);
 
     useEffect(() => {
-        fetchSentences(page);
-    }, [fetchSentences, page]);
+        fetchSentences(page, filter);
+    }, [fetchSentences, page, filter]);
+
 
     // Simple client-side search filtering
     const displaySentences = sentences.filter(s => {
@@ -212,18 +215,22 @@ function SentencePage() {
                                 onCancel={() => setIsModalOpen(false)} 
                             />
                         )}
-                        {error && modalMode === 'single' && <p style={{color:'red', marginTop: '10px'}}>{error}</p>}
+                        {error && modalMode === 'single' && <p className="modal-error">{error}</p>}
                     </div>
                 </div>
             )}
 
             {/* Grid */}
-            <SentenceList 
-                sentences={displaySentences}
-                onDeleteSentence={deleteSentence}
-                onToggleDifficult={toggleDifficult}
-                audioBaseUrl={AUDIO_BASE_URL}
-            />
+            {isLoading && page === 1 ? (
+                 <div className="loading-message">Loading...</div>
+            ) : (
+                <SentenceList 
+                    sentences={displaySentences}
+                    onDeleteSentence={deleteSentence}
+                    onToggleDifficult={toggleDifficult}
+                    audioBaseUrl={AUDIO_BASE_URL}
+                />
+            )}
 
             {/* Load More */}
             {hasMore && (

@@ -2,7 +2,9 @@ import React from 'react';
 
 function SentenceItem({ sentence, onDeleteSentence, onToggleDifficult, audioBaseUrl }) {
     
-    const isDue = sentence.progress?.nextDueAt && new Date(sentence.progress.nextDueAt) <= new Date();
+
+    const hasNextDue = sentence.progress?.nextDueAt;
+    const isDue = !hasNextDue || new Date(sentence.progress.nextDueAt) <= new Date();
     const isDifficult = sentence.progress?.difficult;
     
     const audioUrl = sentence.audioFilename ? `${audioBaseUrl}${sentence.audioFilename}` : null;

@@ -3,7 +3,7 @@ import SentenceItem from './SentenceItem';
 
 function SentenceList({ sentences, onDeleteSentence, onToggleDifficult, audioBaseUrl }) {
     if (!sentences || sentences.length === 0) {
-        return <div style={{color:'#666', fontStyle:'italic', marginTop:'20px'}}>No sentences found.</div>;
+        return <div className="empty-state-message">No sentences found.</div>;
     }
 
     return (
