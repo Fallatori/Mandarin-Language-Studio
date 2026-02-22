@@ -13,13 +13,14 @@ function SentencePage() {
     const [sentences, setSentences] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
-    const [sortOrder] = useState('desc');
     const [filter, setFilter] = useState('all');
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [modalMode, setModalMode] = useState('single'); // 'single' or 'bulk'
+    const [modalMode, setModalMode] = useState('single');
+    const [searchTerm, setSearchTerm] = useState("");
 
+    // Reset pagination when filter changes
     useEffect(() => {
         setSentences([]);
         setPage(1);
@@ -31,39 +32,36 @@ function SentencePage() {
         setError(null);
         try {
             const response = await axios.get(`${API_URL}?filter=${filter}&page=${pageNum}&limit=20`, { withCredentials: true });
-            
             const { sentences: newSentences, hasMore: moreAvailable } = response.data;
 
-            setSentences(prev => {
-                const updatedList = pageNum === 1 ? newSentences : [...prev, ...newSentences];
-                return sortSentences(updatedList, sortOrder);
-            });
+            setSentences(prev => pageNum === 1 ? newSentences : [...prev, ...newSentences]);
             setHasMore(moreAvailable);
         } catch (err) {
-            console.error("Failed to fetch sentences:", err);
-            if (err.response && err.response.status === 401) {
-                navigate('/login');
-            }
-            setError("Failed to load sentences. Please try again later.");
+            console.error(err);
+             if (err.response && err.response.status === 401) navigate('/login');
         } finally {
             setIsLoading(false);
         }
-    }, [sortOrder, filter, navigate]);
+    }, [filter, navigate]);
 
     useEffect(() => {
         fetchSentences(page);
     }, [fetchSentences, page]);
 
-    const sortSentences = (sentencesToSort, order) => {
-        return [...sentencesToSort].sort((a, b) => {
-            const dateA = a.lastPracticedAt ? new Date(a.lastPracticedAt) : null;
-            const dateB = b.lastPracticedAt ? new Date(b.lastPracticedAt) : null;
-            if (dateA === null && dateB === null) return 0;
-            if (dateA === null) return order === 'desc' ? 1 : -1;
-            if (dateB === null) return order === 'desc' ? -1 : 1;
-            if (order === 'desc') return dateB - dateA;
-            else return dateA - dateB;
-        });
+    // Simple client-side search filtering
+    const displaySentences = sentences.filter(s => {
+        if (!searchTerm) return true;
+        const low = searchTerm.toLowerCase();
+        return (
+            (s.chineseText && s.chineseText.includes(searchTerm)) ||
+            (s.englishTranslation && s.englishTranslation.toLowerCase().includes(low)) ||
+            (s.pinyin && s.pinyin.toLowerCase().includes(low))
+        );
+    });
+
+    const handleOpenModal = (mode) => {
+        setModalMode(mode);
+        setIsModalOpen(true);
     };
 
     const addSentence = async (formData) => {
@@ -74,7 +72,7 @@ function SentencePage() {
                 headers: { 'Content-Type': 'multipart/form-data' },
                 withCredentials: true,
             });
-            setSentences(prev => sortSentences([...prev, response.data], sortOrder));
+            setSentences(prev => [response.data, ...prev]);
             setIsModalOpen(false);
         } catch (err) {
             if (err.response && err.response.status === 401) {
@@ -90,34 +88,9 @@ function SentencePage() {
 
     const handleBulkComplete = (newSentences) => {
         if (newSentences && newSentences.length > 0) {
-            setSentences(prev => sortSentences([...prev, ...newSentences], sortOrder));
+            setSentences(prev => [...newSentences, ...prev]);
         }
         setIsModalOpen(false);
-    };
-
-    const handleOpenModal = (mode) => {
-        setModalMode(mode);
-        setIsModalOpen(true);
-    };
-
-    const handleLoadMore = () => {
-        setPage(prev => prev + 1);
-    };
-
-    const markAsPracticed = async (id) => {
-        try {
-            const response = await axios.patch(`${API_URL}/${id}/practice`, {}, { withCredentials: true });
-            const updatedSentence = response.data;
-            setSentences(prev => {
-                 const updatedList = prev.map(s => s.id === id ? updatedSentence : s);  
-                return sortSentences(updatedList, sortOrder);
-            });
-        } catch (err) { 
-            if (err.response && err.response.status === 401) {
-                navigate('/login');
-            }
-            console.error(err); 
-        }
     };
 
     const deleteSentence = async (id) => {
@@ -126,97 +99,141 @@ function SentencePage() {
              await axios.delete(`${API_URL}/${id}`, { withCredentials: true });
              setSentences(prev => prev.filter(s => s.id !== id));
         } catch (err) {
-            if (err.response && err.response.status === 401) {
-                navigate('/login');
-            }
-             console.error(err);
+            if (err.response && err.response.status === 401) navigate('/login');
+            console.error(err);
         }
     }
 
-    const deleteAllSentences = async () => {
-        if(!window.confirm("Are you sure you want to delete ALL your sentences? This cannot be undone.")) return;
-         try {
-             await axios.delete(`${API_URL}/all`, { withCredentials: true });
-             setSentences([]);
-        } catch(err) { console.error(err); setError("Failed to delete all sentences"); }
-    }
+    //  const markAsPracticed = async (id) => {
+    //     try {
+    //         const response = await axios.patch(`${API_URL}/${id}/practice`, {}, { withCredentials: true });
+    //         const updatedSentence = response.data;
+    //         setSentences(prev => prev.map(s => s.id === id ? updatedSentence : s));
+    //     } catch (err) { 
+    //         if (err.response && err.response.status === 401) navigate('/login');
+    //         console.error(err); 
+    //     }
+    // };
+    
+    const toggleDifficult = async (id, currentDifficulty) => {
+        try {
+            const desiredState = typeof currentDifficulty === 'boolean' ? currentDifficulty : true; 
+
+            const response = await axios.patch(
+                `${API_URL}/${id}/difficult`,
+                { difficult: desiredState },
+                { withCredentials: true }
+            );
+
+            setSentences(prev => prev.map(s => {
+                if (s.id === id) {
+                    const updated = { ...s };
+                    updated.progress = { ...(s.progress || {}), ...response.data };
+                    return updated;
+                }
+                return s;
+            }));
+        } catch (err) {
+            if (err.response && err.response.status === 401) navigate('/login');
+            console.error("Failed to toggle difficulty:", err);
+        }
+    };
 
     return (
-        <div className="main-content-column">
-            <div className="page-header">
-                <h2>My Sentences</h2>
-                <div className="header-actions">
-                    <button className="add-btn" onClick={() => handleOpenModal('single')}>+ New Sentence</button>
-                    <button className="add-btn btn-bulk" onClick={() => handleOpenModal('bulk')}>Bulk Upload</button>
-                    <button className="add-btn btn-delete" onClick={deleteAllSentences}>Delete All</button>
+        <div>
+            {/* Header Section */}
+            <div className="content-header">
+                <div className="header-top">
+                    <div className="header-title">
+                        <h2>My Sentences</h2>
+                        <p>Manage and review your saved Mandarin phrases</p>
+                    </div>
+                    <div className="action-buttons">
+                        <button className="btn-outline" onClick={() => handleOpenModal('bulk')}>
+                            <span className="material-symbols-outlined">upload</span>
+                            <span>Bulk Upload</span>
+                        </button>
+                        <button className="btn-primary" onClick={() => handleOpenModal('single')}>
+                            <span className="material-symbols-outlined">add</span>
+                            <span>New Sentence</span>
+                        </button>
+                    </div>
+                </div>
+
+                {/* Toolbar */}
+                <div className="toolbar">
+                    <div className="search-wrapper">
+                         <span className="material-symbols-outlined search-icon">search</span>
+                         <input 
+                            className="search-input" 
+                            type="text" 
+                            placeholder="Search by character, pinyin, or translation..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                         />
+                    </div>
+                    
+                    <div className="filter-pills">
+                        <button 
+                            className={`pill-btn ${filter === 'all' ? 'active' : ''}`} 
+                            onClick={() => setFilter('all')}
+                        >
+                            All Sentences
+                        </button>
+                        <button 
+                            className={`pill-btn ${filter === 'due' ? 'active' : ''}`} 
+                            onClick={() => setFilter('due')}
+                        >
+                            Due for Review
+                        </button>
+                        <button 
+                            className={`pill-btn ${filter === 'difficult' ? 'active' : ''}`} 
+                            onClick={() => setFilter('difficult')}
+                        >
+                            Difficult
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            <div className="filter-controls">
-                <button 
-                    className={`filter-btn ${filter === 'all' ? 'active' : ''}`}
-                    onClick={() => setFilter('all')}
-                >
-                    All Sentences
-                </button>
-                <button 
-                    className={`filter-btn ${filter === 'due' ? 'active' : ''}`}
-                    onClick={() => setFilter('due')}
-                >
-                    Due for Review
-                </button>
-                <button 
-                    className={`filter-btn ${filter === 'difficult' ? 'active' : ''}`}
-                    onClick={() => setFilter('difficult')}
-                >
-                    Difficult
-                </button>
-            </div>
-
-            {isModalOpen && (
+            {/* Modal Logic */}
+             {isModalOpen && (
                 <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
                     <div className="modal-content" onClick={e => e.stopPropagation()}>
                         <button className="modal-close-btn" onClick={() => setIsModalOpen(false)}>×</button>
-                        
                         {modalMode === 'single' ? (
-                            <SentenceForm onAddSentence={addSentence} isLoading={isLoading} />
+                            <SentenceForm 
+                                onAddSentence={addSentence} 
+                                isLoading={isLoading} 
+                            />
                         ) : (
-                            <BulkUploadForm onUploadComplete={handleBulkComplete} onCancel={() => setIsModalOpen(false)} />
+                            <BulkUploadForm 
+                                onUploadComplete={handleBulkComplete} 
+                                onCancel={() => setIsModalOpen(false)} 
+                            />
                         )}
-
-                        {error && modalMode === 'single' && <p className="error-message">{error}</p>}
+                        {error && modalMode === 'single' && <p style={{color:'red', marginTop: '10px'}}>{error}</p>}
                     </div>
                 </div>
             )}
-            
-            <div className="sentence-list-container full-width">
-                {sentences.length === 0 && !isLoading && (
-                    <p className="no-sentences-message">
-                        {filter === 'all' ? 'No sentences added yet.' : `No ${filter} sentences found.`}
-                    </p>
-                )}
 
-                <SentenceList
-                    sentences={sentences}
-                    onMarkAsPracticed={markAsPracticed}
-                    onDeleteSentence={deleteSentence}
-                    audioBaseUrl={AUDIO_BASE_URL}
-                />
+            {/* Grid */}
+            <SentenceList 
+                sentences={displaySentences}
+                onDeleteSentence={deleteSentence}
+                onToggleDifficult={toggleDifficult}
+                audioBaseUrl={AUDIO_BASE_URL}
+            />
 
-                {hasMore && sentences.length > 0 && (
-                    <div className="load-more-container">
-                        <button 
-                            onClick={handleLoadMore} 
-                            disabled={isLoading}
-                            className="btn-secondary load-more-btn"
-                        >
-                            {isLoading ? 'Loading...' : 'Load More'}
-                        </button>
-                    </div>
-                )}
-                
-                {isLoading && page === 1 && <p>Loading sentences...</p>}
-            </div>
+            {/* Load More */}
+            {hasMore && (
+                <div className="load-more-wrapper">
+                    <button className="btn-load-more" onClick={() => setPage(p => p + 1)} disabled={isLoading}>
+                        <span>{isLoading ? 'Loading...' : 'Load More Sentences'}</span>
+                        <span className="material-symbols-outlined">expand_more</span>
+                    </button>
+                </div>
+            )}
         </div>
     );
 }

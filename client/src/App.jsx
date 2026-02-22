@@ -7,40 +7,29 @@ import ProtectedRoute from './components/ProtectedRoute';
 import FlashcardPage from './components/FlashcardPage';
 import DeckPage from './components/DeckPage';
 import { AuthProvider } from './context/AuthContext';
-
 import './App.css'; 
 
 function App() {
     return (
         <AuthProvider>
-            <div className="App">
-                <Navbar />
-                <div className="content-wrapper">
-                    <Routes>
-                        <Route path="/login" element={<LoginPage />} />
-                        <Route 
-                            path="/" 
-                            element={
-                                <ProtectedRoute>
-                                    <SentencePage />
-                                </ProtectedRoute>
-                            } 
-                        />
-                        <Route path="/cards" element={
-                            <ProtectedRoute><FlashcardPage /></ProtectedRoute>
-                        } />
-                        <Route 
-                            path="/words" 
-                            element={
-                                <ProtectedRoute>
-                                    <WordPage />
-                                </ProtectedRoute>
-                            } 
-                        />
-                        <Route path="/decks" element={<ProtectedRoute><DeckPage /></ProtectedRoute>} />
-                    </Routes>
-                </div>
-            </div>
+            <Routes>
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="*" element={
+                    <ProtectedRoute>
+                         <div className="app-container">
+                            <Navbar />
+                               <div className="main-wrapper">
+                                <Routes>
+                                    <Route path="/" element={<SentencePage />} />
+                                    <Route path="/cards" element={<FlashcardPage />} />
+                                    <Route path="/words" element={<WordPage />} />
+                                    <Route path="/decks" element={<DeckPage />} />
+                                </Routes>
+                            </div>
+                        </div>
+                    </ProtectedRoute>
+                } />
+             </Routes>
         </AuthProvider>
     );
 }

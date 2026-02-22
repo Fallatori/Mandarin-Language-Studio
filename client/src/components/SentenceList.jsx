@@ -1,20 +1,19 @@
-// src/components/SentenceList.jsx
 import React from 'react';
 import SentenceItem from './SentenceItem';
 
-function SentenceList({ sentences, onMarkAsPracticed, onDeleteSentence, audioBaseUrl }) {
+function SentenceList({ sentences, onDeleteSentence, onToggleDifficult, audioBaseUrl }) {
     if (!sentences || sentences.length === 0) {
-        return null;
+        return <div style={{color:'#666', fontStyle:'italic', marginTop:'20px'}}>No sentences found.</div>;
     }
 
     return (
-        <div className="sentence-list">
+        <div className="sentence-grid"> 
             {sentences.map((sentence) => (
                 <SentenceItem
                     key={sentence.id}
                     sentence={sentence}
-                    onMarkAsPracticed={onMarkAsPracticed}
                     onDeleteSentence={onDeleteSentence}
+                    onToggleDifficult={onToggleDifficult} 
                     audioBaseUrl={audioBaseUrl}
                 />
             ))}

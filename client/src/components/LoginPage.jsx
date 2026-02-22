@@ -30,53 +30,55 @@ function LoginPage() {
     };
 
     return (
-        <div className="login-container">
-            <h2 className="login-header">{isLogin ? 'Login' : 'Register'}</h2>
-            {error && <p className="error-message">{error}</p>}
-            <form onSubmit={handleSubmit} className="login-form">
-                {!isLogin && (
+        <div className="login-page-wrapper">
+            <div className="login-container">
+                <h2 className="login-header">{isLogin ? 'Login' : 'Register'}</h2>
+                {error && <p className="error-message">{error}</p>}
+                <form onSubmit={handleSubmit} className="login-form">
+                    {!isLogin && (
+                        <div>
+                            <label className="login-label">Username</label>
+                            <input
+                                type="text"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                required
+                                className="login-input"
+                            />
+                        </div>
+                    )}
                     <div>
-                        <label className="login-label">Username</label>
+                        <label className="login-label">Email</label>
                         <input
-                            type="text"
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
                             required
                             className="login-input"
                         />
                     </div>
-                )}
-                <div>
-                    <label className="login-label">Email</label>
-                    <input
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                        className="login-input"
-                    />
-                </div>
-                <div>
-                    <label className="login-label">Password</label>
-                    <input
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                        className="login-input"
-                    />
-                </div>
-                <button type="submit">{isLogin ? 'Login' : 'Register'}</button>
-            </form>
-            <p className="login-footer">
-                {isLogin ? "Don't have an account? " : "Already have an account? "}
-                <button 
-                    onClick={() => { setIsLogin(!isLogin); setError(''); }}
-                    className="btn-text"
-                >
-                    {isLogin ? 'Register' : 'Login'}
-                </button>
-            </p>
+                    <div>
+                        <label className="login-label">Password</label>
+                        <input
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                            className="login-input"
+                        />
+                    </div>
+                    <button type="submit">{isLogin ? 'Login' : 'Register'}</button>
+                </form>
+                <p className="login-footer">
+                    {isLogin ? "Don't have an account? " : "Already have an account? "}
+                    <button 
+                        onClick={() => { setIsLogin(!isLogin); setError(''); }}
+                        className="btn-text"
+                    >
+                        {isLogin ? 'Register' : 'Login'}
+                    </button>
+                </p>
+            </div>
         </div>
     );
 }

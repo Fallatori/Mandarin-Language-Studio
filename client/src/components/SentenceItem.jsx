@@ -1,58 +1,81 @@
+import React from 'react';
 
-import { useState } from 'react';
-
-const formatDate = (isoString) => {
-    if (!isoString) return 'Never';
-    try {
-        return new Date(isoString).toLocaleString(); // Adjust format as needed
-    } catch (error) {
-        console.error("Error formatting date:", error);
-        return 'Invalid Date';
-    }
-};
-
-function SentenceItem({ sentence, onMarkAsPracticed, onDeleteSentence, audioBaseUrl }) {
-    const [isExpanded, setIsExpanded] = useState(false);
-
+function SentenceItem({ sentence, onDeleteSentence, onToggleDifficult, audioBaseUrl }) {
+    
+    const isDue = sentence.progress?.nextDueAt && new Date(sentence.progress.nextDueAt) <= new Date();
+    const isDifficult = sentence.progress?.difficult;
+    
     const audioUrl = sentence.audioFilename ? `${audioBaseUrl}${sentence.audioFilename}` : null;
 
-    const handleActionClick = (e, action) => {
+    const playAudio = (e) => {
         e.stopPropagation();
-        action();
-    }
+        if(audioUrl) {
+            const audio = new Audio(audioUrl);
+            audio.play().catch(e => console.error("Audio play failed", e));
+        }
+    };
 
     return (
-    <div className={`sentence-item ${isExpanded ? 'expanded' : ''}`} onClick={() => setIsExpanded(!isExpanded)}>
-        <div className="sentence-text">
-            <p className="chinese">{sentence.chineseText}</p>
-            <p className="pinyin">{sentence.pinyin}</p>
-            <p className="translation">{sentence.englishTranslation}</p>
+        <div className="card" onClick={playAudio}>
+            <div className="card-top">
+                <div className="card-badges">
+                    {isDue && <span className="badge badge-due">Review Due</span>}
+                    {isDifficult && <span className="badge badge-difficult">Difficult</span>}
+                </div>
+                
+                <div className="card-actions">                  
+                     {audioUrl && (
+                        <button 
+                            className="icon-btn"
+                            title="Play Audio"
+                            onClick={playAudio}
+                        >
+                            <span className="material-symbols-outlined">volume_up</span>
+                        </button>
+                     )}
+
+                    <button 
+                        className={`icon-btn ${isDifficult ? 'active' : ''}`}
+                        title={isDifficult ? "Unmark Difficult" : "Mark Difficult"}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if(onToggleDifficult) onToggleDifficult(sentence.id, !isDifficult);
+                        }}
+                    >
+                        <span className="material-symbols-outlined" style={{fontVariationSettings: "'FILL' 1"}}>warning</span>
+                    </button>
+
+                    {/* <button 
+                        className="icon-btn"
+                        title="Mark as Practiced"
+                        onClick={(e) => { 
+                            e.stopPropagation(); 
+                            if(window.confirm('Mark as practiced?')) onMarkAsPracticed(sentence.id); 
+                        }}
+                    >
+                        <span className="material-symbols-outlined">check_circle</span>
+                    </button> */}
+                    
+                    <button 
+                        className="icon-btn" 
+                        title="Delete"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if(onDeleteSentence) onDeleteSentence(sentence.id);
+                        }}
+                    >
+                        <span className="material-symbols-outlined">delete</span>
+                    </button>
+                </div>
+            </div>
+
+            <div className="card-content">
+                <h3 className="card-hanzi hanzi-font">{sentence.chineseText}</h3>
+                <p className="card-pinyin">{sentence.pinyin}</p>
+                <p className="card-english">{sentence.englishTranslation}</p>
+            </div>
         </div>
-        <div className="sentence-details">
-            <div className="sentence-audio" onClick={(e) => e.stopPropagation()}>
-                {audioUrl ? (
-                    <audio controls src={audioUrl}>
-                        Your browser does not support the audio element.
-                    </audio>
-                ) : (
-                    <p>No audio available.</p>
-                )}
-            </div>
-            <div className="sentence-meta">
-                <p>Created: {formatDate(sentence.createdAt)}</p>
-                <p>Last Practiced: <strong>{formatDate(sentence.lastPracticedAt)}</strong></p>
-            </div>
-            <div className="sentence-actions">
-                <button onClick={(e) => handleActionClick(e, () => onMarkAsPracticed(sentence.id))} className="practice-button">
-                    Mark as Practiced Now
-                </button>
-                <button onClick={(e) => handleActionClick(e, () => onDeleteSentence(sentence.id))} className="delete-button">
-                    Delete
-                </button>
-            </div>
-        </div>
-    </div>
-);
+    );
 }
 
 export default SentenceItem;
