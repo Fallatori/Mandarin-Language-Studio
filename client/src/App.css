@@ -954,6 +954,7 @@ body {
 	transition:
 		transform 0.2s,
 		box-shadow 0.2s;
+	padding-top: 2rem;
 }
 
 .deck-card-hanzi {
@@ -969,9 +970,13 @@ body {
 }
 
 .deck-icon {
+	position: absolute;
+	top: 1rem;
+	right: 1rem;
 	font-size: 2rem;
 	color: var(--primary-color);
-	opacity: 0.8;
+	opacity: 0.5;
+	pointer-events: none;
 }
 
 .deck-meta {
@@ -1277,10 +1282,10 @@ body {
 }
 
 .centered-pills {
-    justify-content: center;
+	justify-content: center;
 }
 
 .pill-btn {
-    padding: 0.75rem 2rem;
-    font-size: 1rem;
+	padding: 0.75rem 2rem;
+	font-size: 1rem;
 }

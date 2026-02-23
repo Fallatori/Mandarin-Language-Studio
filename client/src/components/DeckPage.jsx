@@ -385,9 +385,8 @@ function DeckPage() {
                             className="card deck-card" 
                             onClick={() => openViewModal(d)}
                         >
-                             <div className="card-top">
-                                <span className="material-symbols-outlined deck-icon">layers</span>
-                             </div>
+                             <span className="material-symbols-outlined deck-icon">layers</span>
+                             
                             <div className="card-content">
                                 <h3 className="deck-card-hanzi">{d.name}</h3>
                                 <div className="deck-meta">
