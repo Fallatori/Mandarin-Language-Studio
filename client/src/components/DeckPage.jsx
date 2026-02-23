@@ -6,21 +6,18 @@ function DeckPage() {
     const navigate = useNavigate();
     const [decks, setDecks] = useState([]);
     const [allSentences, setAllSentences] = useState([]);
-
+    
     const [modalMode, setModalMode] = useState(null); // null | 'create' | 'edit' | 'view'
     const [selectedDeck, setSelectedDeck] = useState(null);
     
     const [newName, setNewName] = useState("");
     const [selectedIds, setSelectedIds] = useState(new Set());
-    const [step, setStep] = useState(1); 
+    const [step, setStep] = useState(1); // 1: Select Sentences, 2: Name/Confirm
     const [isLoading, setIsLoading] = useState(false);
     const [lastCheckedId, setLastCheckedId] = useState(null);
 
     const [searchTerm, setSearchTerm] = useState("");
-    const [hasMore, setHasMore] = useState(true);
-    const [sentencePage, setSentencePage] = useState(1);
-    const [isLoadingSentences, setIsLoadingSentences] = useState(false);
-
+    const [currentPage, setCurrentPage] = useState(1);
     const ITEMS_PER_PAGE = 20;
 
     const fetchDecks = useCallback(async () => {
@@ -38,38 +35,22 @@ function DeckPage() {
         }
     }, [navigate]);
 
-    const fetchSentences = useCallback(async (pageNum) => {
-        setIsLoadingSentences(true);
+    const fetchSentences = useCallback(async () => {
         try {
-            const res = await axios.get(`http://localhost:5001/api/sentences?page=${pageNum}&limit=20&filter=all`, { withCredentials: true });
-            
-            const newSentences = res.data.sentences || [];
-            
-            setAllSentences(prev => {
-                if (pageNum === 1) return newSentences;
-                const existingIds = new Set(prev.map(s => s.id));
-                const uniqueNew = newSentences.filter(s => !existingIds.has(s.id));
-                return [...prev, ...uniqueNew];
-            });
-            
-            setHasMore(res.data.hasMore);
+            const res = await axios.get('http://localhost:5001/api/sentences?limit=1000', { withCredentials: true });
+            // Ideally we paginate this properly from backend when selecting for decks too
+             setAllSentences(res.data.sentences || []);
         } catch (err) {
             console.error(err);
-        } finally {
-            setIsLoadingSentences(false);
         }
     }, []);
 
     useEffect(() => {
         fetchDecks();
-        fetchSentences(1);
+        fetchSentences();
     }, [fetchDecks, fetchSentences]);
 
-    const handleLoadMore = () => {
-        const next = sentencePage + 1;
-        setSentencePage(next);
-        fetchSentences(next);
-    };
+    // --- Actions ---
 
     const openCreateModal = () => {
         setModalMode('create');
@@ -78,19 +59,17 @@ function DeckPage() {
         setSelectedIds(new Set());
         setStep(1);
         setSearchTerm("");
+        setCurrentPage(1);
     };
 
     const openViewModal = async (deck) => {
         setModalMode('view');
         setSelectedDeck({ ...deck, sentences: deck.sentences || [] });
         try {
-            const res = await axios.get(
-                `http://localhost:5001/api/decks/${deck.id}/sentences`,
-                { withCredentials: true },
-            );
-            setSelectedDeck((prev) => ({ ...prev, sentences: res.data }));
+            const res = await axios.get(`http://localhost:5001/api/decks/${deck.id}/sentences`, { withCredentials: true });
+            setSelectedDeck(prev => ({ ...prev, sentences: res.data }));
         } catch (err) {
-            console.error('Failed to load deck sentences:', err);
+            console.error("Failed to load deck sentences:", err);
         }
     };
 
@@ -102,6 +81,7 @@ function DeckPage() {
         setSelectedIds(existingIds);
         setStep(1);
         setSearchTerm("");
+        setCurrentPage(1);
     };
 
     const handleClose = useCallback(() => {
@@ -115,6 +95,7 @@ function DeckPage() {
         setSelectedIds(new Set());
         setStep(1);
         setSearchTerm("");
+        setCurrentPage(1);
     }, [modalMode, step, selectedIds]);
 
     const handleSave = async (e) => {
@@ -152,6 +133,7 @@ function DeckPage() {
         }
     };
 
+    // --- Selection Logic ---
 
     const toggleSelection = (id, event) => {
         const newSet = new Set(selectedIds);
@@ -178,17 +160,22 @@ function DeckPage() {
         setSelectedIds(newSet);
     };
 
-    const filteredSentences = (allSentences || []).filter(s => {
+    // --- Search & Pagination Logic ---
+    const filteredSentences = allSentences.filter(s => {
         if (!searchTerm) return true;
         const searchLower = searchTerm.toLowerCase();
         return (
-            (s.chineseText && s.chineseText.includes(searchTerm)) || 
-            (s.englishTranslation && s.englishTranslation.toLowerCase().includes(searchLower)) ||
-            (s.pinyin && s.pinyin.toLowerCase().includes(searchLower))
+            s.chineseText.includes(searchTerm) || 
+            s.englishTranslation.toLowerCase().includes(searchLower) ||
+            s.pinyin.toLowerCase().includes(searchLower)
         );
     });
 
-    const paginatedSentences = filteredSentences;
+    const totalPages = Math.ceil(filteredSentences.length / ITEMS_PER_PAGE);
+    const paginatedSentences = filteredSentences.slice(
+        (currentPage - 1) * ITEMS_PER_PAGE,
+        currentPage * ITEMS_PER_PAGE
+    );
 
     const handleSelectAllFiltered = () => {
         const newSet = new Set(selectedIds);
@@ -202,38 +189,34 @@ function DeckPage() {
         setSelectedIds(newSet);
     };
 
-    useEffect(() => {
-        const handleEsc = (e) => {
-            if (e.key === 'Escape' && modalMode) handleClose();
-        };
-        window.addEventListener('keydown', handleEsc);
-        return () => window.removeEventListener('keydown', handleEsc);
-    }, [modalMode, handleClose]);
+    // --- Render Helpers ---
 
     const renderSelectionList = () => (
         <>
             <div className="deck-toolbar">
-                <input 
-                    type="text" 
-                    placeholder="Search sentences..." 
-                    value={searchTerm}
-                    onChange={(e) => {
-                        setSearchTerm(e.target.value);
-                    }}
-                    className="deck-search-input"
-                />
+                <div className="search-wrapper">
+                     <span className="material-symbols-outlined search-icon">search</span>
+                     <input 
+                        type="text" 
+                        placeholder="Search sentences..." 
+                        value={searchTerm}
+                        onChange={(e) => {
+                            setSearchTerm(e.target.value);
+                            setCurrentPage(1); // Reset to page 1 on search
+                        }}
+                        className="search-input"
+                    />
+                </div>
                 <div className="deck-selection-actions">
                     <button 
-                        className="btn-secondary btn-small" 
+                        className="btn-outline btn-small" 
                         onClick={handleSelectAllFiltered}
-                        title="Select all matched by search"
                     >
                         Select All
                     </button>
                     <button 
-                        className="btn-secondary btn-small" 
+                        className="btn-outline btn-small" 
                         onClick={handleDeselectAllFiltered}
-                        title="Deselect all matched by search"
                     >
                         Clear
                     </button>
@@ -251,34 +234,44 @@ function DeckPage() {
                             type="checkbox" 
                             checked={selectedIds.has(s.id)} 
                             readOnly
-                            className="checkbox-readonly"
+                            className="checkbox-custom"
                         />
-                        <span className="deck-item-text">
-                            {s.chineseText} <span className="deck-item-translation">({s.englishTranslation})</span>
-                        </span>
+                         <div className="deck-item-content">
+                            <span className="deck-item-hanzi">{s.chineseText}</span>
+                            <span className="deck-item-translation">{s.englishTranslation}</span>
+                        </div>
                     </label>
                 ))}
-                
                 {paginatedSentences.length === 0 && (
                     <p className="no-deck-sentences">No sentences found.</p>
                 )}
-
-                {hasMore && (
-                 <div className="load-more-container deck-modal-load-more">
-                     <button 
-                         onClick={handleLoadMore} 
-                         disabled={isLoadingSentences}
-                         className="btn-secondary load-more-btn"
-                     >
-                         {isLoadingSentences ? 'Loading...' : 'Load More Sentences'}
-                     </button>
-                 </div>
-                )}
             </div>
 
-            <div className="preview-actions preview-actions--spaced">
-                <button className="btn-secondary" onClick={handleClose}>Cancel</button>
-                <button className="btn-success" onClick={() => setStep(2)}>
+            {totalPages > 1 && (
+                <div className="pagination-controls">
+                    <button 
+                        className="btn-outline btn-small" 
+                        disabled={currentPage === 1}
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    >
+                        Previous
+                    </button>
+                    <span className="pagination-info">
+                        Page {currentPage} of {totalPages}
+                    </span>
+                    <button 
+                        className="btn-outline btn-small" 
+                        disabled={currentPage === totalPages}
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    >
+                        Next
+                    </button>
+                </div>
+            )}
+
+            <div className="modal-actions-right">
+                <button className="btn-outline" onClick={handleClose}>Cancel</button>
+                <button className="btn-primary" onClick={() => setStep(2)}>
                     Next ({selectedIds.size} selected)
                 </button>
             </div>
@@ -287,20 +280,24 @@ function DeckPage() {
 
     const renderNameInput = () => (
         <div className="deck-step-container">
-            <div className="deck-input-group">
-                <label>Deck Name</label>
-                <input
-                    className="sentence-input deck-name-input"
-                    placeholder="e.g., HSK 1 Vocabulary"
-                    value={newName}
+            <div className="deck-summary-info">
+                <span className="summary-count">{selectedIds.size}</span>
+                <div className="summary-label">Sentences Selected</div>
+            </div>
+            <div className="form-group">
+                <label className="input-label">Deck Name</label>
+                <input 
+                    className="input-field" 
+                    placeholder="e.g., HSK 1 Vocabulary" 
+                    value={newName} 
                     onChange={e => setNewName(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSave()}
                     autoFocus
                 />
             </div>
-            <div className="preview-actions">
-                <button className="btn-secondary" onClick={() => setStep(1)}>Back</button>
-                <button className="btn-success" onClick={handleSave}>
+            <div className="modal-actions-right">
+                <button className="btn-outline" onClick={() => setStep(1)}>Back</button>
+                <button className="btn-primary" onClick={handleSave}>
                     {modalMode === 'create' ? 'Create Deck' : 'Save Changes'}
                 </button>
             </div>
@@ -311,17 +308,20 @@ function DeckPage() {
         if (!selectedDeck) return null;
         return (
             <div className="deck-view-container">
-                <h2 className="deck-view-title">{selectedDeck.name}</h2>
-                <p className="deck-view-sub">
-                    {selectedDeck.sentences ? selectedDeck.sentences.length : 0} sentences
-                </p>
+                <div className="deck-view-header">
+                    <h2 className="deck-view-title">{selectedDeck.name}</h2>
+                    <span className="deck-count-badge">
+                        {selectedDeck.sentences ? selectedDeck.sentences.length : 0} sentences
+                    </span>
+                </div>
 
-                <div className="deck-selection-list deck-selection-list--modal">
+                <div className="deck-selection-list deck-selection-readonly">
                     {selectedDeck.sentences && selectedDeck.sentences.map(s => (
-                        <div key={s.id} className="deck-selection-item deck-selection-readonly">
-                            <span className="deck-item-text">
-                                {s.chineseText} <span className="deck-item-translation">({s.englishTranslation})</span>
-                            </span>
+                        <div key={s.id} className="deck-read-item">
+                             <div className="deck-item-content">
+                                <span className="deck-item-hanzi">{s.chineseText}</span>
+                                <span className="deck-item-translation">{s.englishTranslation}</span>
+                            </div>
                         </div>
                     ))}
                     {(!selectedDeck.sentences || selectedDeck.sentences.length === 0) && (
@@ -329,66 +329,79 @@ function DeckPage() {
                     )}
                 </div>
 
-                <div className="word-detail-actions">
-                    <button onClick={openEditModal} className="add-btn">Edit Deck</button>
-                    <button onClick={() => handleDelete(selectedDeck.id)} className="btn-delete">Delete</button>
-                    <button onClick={handleClose} className="btn-secondary">Close</button>
+                <div className="modal-actions-center">
+                    <button onClick={openEditModal} className="btn-primary">
+                         <span className="material-symbols-outlined">edit</span> Edit
+                    </button>
+                    <button onClick={() => handleDelete(selectedDeck.id)} className="btn-outline btn-delete">
+                        <span className="material-symbols-outlined">delete</span> Delete
+                    </button>
+                    <button onClick={handleClose} className="btn-outline">Close</button>
                 </div>
             </div>
         );
     };
 
     return (
-        <div className="main-content">
-            <div className="word-page-container">
-                <div className="word-page-header">
-                    <h2>My Decks</h2>
-                    <button className="add-btn" onClick={openCreateModal}>+ New Deck</button>
-                </div>
-
-                {/* MODAL OVERLAY */}
-                {modalMode && (
-                    <div className="modal-overlay" onClick={handleClose}>
-                        <div className="sentence-form modal-content" onClick={(e) => e.stopPropagation()}>
-                            <button className="modal-close-btn" onClick={handleClose}>×</button>
-                            
-                            {modalMode === 'view' ? renderViewModal() : (
-                                <>
-                                    <h3>{modalMode === 'create' ? 'Create New Deck' : 'Edit Deck'}</h3>
-                                    {step === 1 ? renderSelectionList() : renderNameInput()}
-                                </>
-                            )}
-                        </div>
+        <div>
+             <div className="content-header">
+                <div className="header-top">
+                    <div className="header-title">
+                        <h2>My Decks</h2>
+                        <p>Organize sentences into custom collections</p>
                     </div>
-                )}
+                    <button className="btn-primary" onClick={openCreateModal}>
+                        <span className="material-symbols-outlined">add</span>
+                        <span>New Deck</span>
+                    </button>
+                </div>
+            </div>
 
-                {isLoading ? (
-                    <p>Loading decks...</p>
-                ) : (
-                    <div className="word-grid">
-                        {decks.map(d => (
-                            <div 
-                                key={d.id} 
-                                className="word-card" 
-                                onClick={() => openViewModal(d)}
-                            >
-                                <div className="word-card-header">
-                                    <h3 className="word-hanzi">{d.name}</h3>
-                                </div>
-                                <div className="word-card-body">
-                                    <p className="word-pinyin" style={{marginBottom: '10px'}}>
-                                        {d.sentences ? d.sentences.length : 0} sentences
-                                    </p>
+            {/* MODAL OVERLAY */}
+            {modalMode && (
+                <div className="modal-overlay" onClick={handleClose}>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                        <button className="modal-close-btn" onClick={handleClose}>
+                             <span className="material-symbols-outlined">close</span>
+                        </button>
+                        
+                        {modalMode === 'view' ? renderViewModal() : (
+                            <>
+                                <h3 className="modal-title">{modalMode === 'create' ? 'Create New Deck' : 'Edit Deck'}</h3>
+                                {step === 1 ? renderSelectionList() : renderNameInput()}
+                            </>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {isLoading ? (
+                <div className="loading-message">Loading decks...</div>
+            ) : (
+                <div className="sentence-grid">
+                    {decks.map(d => (
+                        <div 
+                            key={d.id} 
+                            className="card deck-card" 
+                            onClick={() => openViewModal(d)}
+                        >
+                             <div className="card-top">
+                                <span className="material-symbols-outlined deck-icon">layers</span>
+                             </div>
+                            <div className="card-content">
+                                <h3 className="deck-card-hanzi">{d.name}</h3>
+                                <div className="deck-meta">
+                                    <span className="deck-count">{d.sentences ? d.sentences.length : 0} items</span>
                                 </div>
                             </div>
-                        ))}
-                    </div>
-                )}
-                
-                {!isLoading && decks.length === 0 && (
-                     <div className="no-sentences"><p>No decks created yet.</p></div>
-                )}
-            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+            
+            {!isLoading && decks.length === 0 && (
+                 <div className="empty-state-message">No decks created yet.</div>
+            )}
         </div>
     );
 }

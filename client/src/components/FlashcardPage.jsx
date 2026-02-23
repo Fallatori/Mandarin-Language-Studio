@@ -13,8 +13,9 @@ function FlashcardPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [decks, setDecks] = useState([]);
     const [selectedDeckId, setSelectedDeckId] = useState("");
-    const [filter, setFilter] = useState("all"); // all | due | difficult
+    const [filter, setFilter] = useState("all");
     const [sessionFilter, setSessionFilter] = useState("all");
+    
     const [hasChosenScope, setHasChosenScope] = useState(true);
 
     const [filterCounts, setFilterCounts] = useState({ all: 0, due: 0, difficult: 0 });
@@ -46,10 +47,15 @@ function FlashcardPage() {
         if (nextDeckId && nextDeckId !== 'all') {
             params.set('deckId', nextDeckId);
         }
-
-        const url = `http://localhost:5001/api/sentences/flashcards/counts?${params.toString()}`;
-        const res = await axios.get(url, { withCredentials: true });
-        return res.data;
+        
+        try {
+            const url = `http://localhost:5001/api/sentences/flashcards/counts?${params.toString()}`;
+            const res = await axios.get(url, { withCredentials: true });
+            return res.data;
+        } catch (err) {
+            console.error(err);
+            return null;
+        }
     }, []);
 
     const refreshCounts = useCallback(async () => {
@@ -74,13 +80,11 @@ function FlashcardPage() {
         } finally {
             setIsCountsLoading(false);
         }
-    }, [fetchFlashcardCounts, navigate, selectedDeckId, user]);
+    }, [user, selectedDeckId, fetchFlashcardCounts, navigate]);
 
     useEffect(() => {
-        if (!user) return;
-
         refreshCounts();
-    }, [user, selectedDeckId, refreshCounts]);
+    }, [refreshCounts]);
 
     const endGame = useCallback(() => {
         setGameMode(null);
@@ -168,14 +172,12 @@ function FlashcardPage() {
             });
         } catch (error) {
             console.error("Failed to toggle difficult", error);
-            if (error.response && error.response.status === 401) {
-                navigate('/login');
-            }
         }
-    }, [currentIndex, navigate, sentences]);
+    }, [sentences, currentIndex]);
 
-    const handleNext = async (e) => {
-        e.stopPropagation();
+    const handleNext = useCallback(async (e) => {
+        if (e && e.stopPropagation) e.stopPropagation();
+        
         const current = sentences[currentIndex];
         if (!current) return;
 
@@ -190,33 +192,46 @@ function FlashcardPage() {
             setSentences(nextSentences);
 
             if (nextSentences.length === 0) {
-                setGameMode(null);
-                setSentences([]);
-                setCurrentIndex(0);
-                refreshCounts();
+                endGame();
                 return;
             }
 
             if (currentIndex >= nextSentences.length) {
                 setCurrentIndex(0);
             }
-
             return;
         }
 
         setTimeout(() => {
             setCurrentIndex((prev) => (prev + 1) % sentences.length);
         }, 100);
-    };
+    }, [sentences, currentIndex, sessionFilter, markPracticed, endGame]);
 
-    const handlePrev = (e) => {
-        e.stopPropagation();
+    const handlePrev = useCallback((e) => {
+        if (e && e.stopPropagation) e.stopPropagation();
         setIsFlipped(false);
         setTimeout(() => {
             setCurrentIndex((prev) => (prev - 1 + sentences.length) % sentences.length);
         }, 100);
-    };
+    }, [sentences.length]);
 
+
+    useEffect(() => {
+        if (!gameMode) return;
+
+        const handleKeyDown = (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ') {
+                handleNext(e);
+            } else if (e.key === 'ArrowLeft') {
+                handlePrev(e);
+            } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                 setIsFlipped(prev => !prev);
+            }
+        };
+        
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [gameMode, handleNext, handlePrev]);
 
     if (!gameMode) {
         const countsLabel = (key) => {
@@ -230,13 +245,18 @@ function FlashcardPage() {
         };
 
         return (
-            <div className="main-content">
-                <div className="game-setup">
-                    <h2>Flashcard Practice</h2>
+            <div>
+                 <div className="content-header">
+                    <div className="header-top">
+                        <div className="header-title">
+                            <h2>Flashcard Practice</h2>
+                            <p>Test your memory with spaced repetition</p>
+                        </div>
+                    </div>
 
-                    <div className="flashcard-filters">
+                    <div className="filter-pills">
                         <button
-                            className={`filter-tab ${filter === 'all' ? 'active' : ''}`}
+                            className={`pill-btn ${filter === 'all' ? 'active' : ''}`}
                             onClick={() => {
                                 setHasChosenScope(true);
                                 setFilter('all');
@@ -246,7 +266,7 @@ function FlashcardPage() {
                             All ({countsLabel('all')})
                         </button>
                         <button
-                            className={`filter-tab ${filter === 'due' ? 'active' : ''}`}
+                            className={`pill-btn ${filter === 'due' ? 'active' : ''}`}
                             onClick={() => {
                                 setHasChosenScope(true);
                                 setFilter('due');
@@ -256,7 +276,7 @@ function FlashcardPage() {
                             Due ({countsLabel('due')})
                         </button>
                         <button
-                            className={`filter-tab ${filter === 'difficult' ? 'active' : ''}`}
+                            className={`pill-btn ${filter === 'difficult' ? 'active' : ''}`}
                             onClick={() => {
                                 setHasChosenScope(true);
                                 setFilter('difficult');
@@ -266,102 +286,154 @@ function FlashcardPage() {
                             Difficult ({countsLabel('difficult')})
                         </button>
                     </div>
-                    
-                    <div className="deck-selector-container">
-                        <label className="deck-selector-label">Select Deck:</label>
-                        <div className="deck-selector-controls">
-                            <select 
-                                value={selectedDeckId} 
-                                onChange={(e) => {
-                                    const next = e.target.value;
-                                    setSelectedDeckId(next);
+                </div>
 
-                                    setHasChosenScope(true);
-                                }}
-                                className="deck-dropdown"
-                            >
-                                <option value="">All Cards</option>
-                                {decks.map(d => (
-                                    <option key={d.id} value={d.id}>{d.name} ({d.sentences.length})</option>
-                                ))}
-                            </select>
+                <div className="flashcard-setup-container">
+                    <div className="deck-selector-group">
+                        <label className="deck-selector-label">Select Deck:</label>
+                        <div className="deck-selector-row">
+                             <div className="select-wrapper">
+                                <select 
+                                    value={selectedDeckId} 
+                                    onChange={(e) => {
+                                        const next = e.target.value;
+                                        setSelectedDeckId(next);
+                                        setHasChosenScope(true);
+                                    }}
+                                    className="deck-dropdown"
+                                >
+                                    <option value="">All Cards</option>
+                                    {decks.map(d => (
+                                        <option key={d.id} value={d.id}>{d.name} ({d.sentences.length})</option>
+                                    ))}
+                                </select>
+                                <span className="material-symbols-outlined select-icon">expand_more</span>
+                            </div>
                             <button 
                                 onClick={() => navigate('/decks')}
-                                className="btn-secondary manage-decks-btn"
+                                className="btn-outline"
                             >
                                 Manage Decks
                             </button>
                         </div>
                     </div>
 
-                    <p>Choose your mode:</p>
-                    <div className="mode-buttons">
-                        <button className="btn-mode" onClick={() => startGame('CN_FRONT')} disabled={modeDisabled}>
-                            <h3>Chinese Front</h3>
-                            <small>English on back</small>
-                        </button>
-                        <button className="btn-mode" onClick={() => startGame('EN_FRONT')} disabled={modeDisabled}>
-                            <h3>English Front</h3>
-                            <small>Chinese on back</small>
-                        </button>
+                    <div className="mode-selection">
+                       <p className="mode-label">Choose Mode:</p>
+                       <div className="mode-buttons-grid">
+                            <button 
+                                className="mode-card" 
+                                onClick={() => startGame('CN_FRONT')} 
+                                disabled={modeDisabled}
+                            >
+                                <div className="mode-icon">
+                                    <span className="material-symbols-outlined">translate</span>
+                                </div>
+                                <div className="mode-info">
+                                    <h3>Chinese Front</h3>
+                                    <span>English on back</span>
+                                </div>
+                            </button>
+
+                            <button 
+                                className="mode-card" 
+                                onClick={() => startGame('EN_FRONT')} 
+                                disabled={modeDisabled}
+                            >
+                                 <div className="mode-icon">
+                                    <span className="material-symbols-outlined">language</span>
+                                </div>
+                                <div className="mode-info">
+                                    <h3>English Front</h3>
+                                    <span>Chinese on back</span>
+                                </div>
+                            </button>
+                       </div>
                     </div>
                 </div>
             </div>
         );
     }
 
-    if (isLoading) return <div className="main-content"><p>Loading cards...</p></div>;
-    if (sentences.length === 0) return <div className="main-content"><p>No sentences found to practice</p></div>;
+    if (isLoading) return <div className="loading-message">Loading cards...</div>;
+    if (sentences.length === 0) return <div className="empty-state-message">No sentences found to practice</div>;
 
     const currentCard = sentences[currentIndex];
 
+    // Design: Front content centered big, Back content details
     const frontContent = gameMode === 'CN_FRONT' 
-        ? <div className="card-content-large">{currentCard.chineseText}</div>
-        : <div className="card-content-large">{currentCard.englishTranslation}</div>;
+        ? <div className="fc-content-main hanzi-font">{currentCard.chineseText}</div>
+        : <div className="fc-content-main">{currentCard.englishTranslation}</div>;
 
     const backContent = gameMode === 'CN_FRONT'
         ? (
-            <>
-                <div className="card-content-medium">{currentCard.pinyin}</div>
-                <div className="card-content-small">{currentCard.englishTranslation}</div>
-            </>
+            <div className="fc-content-back">
+                <div className="fc-pinyin">{currentCard.pinyin}</div>
+                <div className="fc-sub">{currentCard.englishTranslation}</div>
+            </div>
           )
         : (
-            <>
-                <div className="card-content-large">{currentCard.chineseText}</div>
-                <div className="card-content-medium">{currentCard.pinyin}</div>
-            </>
+            <div className="fc-content-back">
+                <div className="fc-hanzi hanzi-font">{currentCard.chineseText}</div>
+                <div className="fc-pinyin">{currentCard.pinyin}</div>
+            </div>
           );
 
     return (
-        <div className="main-content-column">
-            <div className="game-header">
-                <h3>Card {currentIndex + 1} / {sentences.length}</h3>
-                <button className="btn-secondary" onClick={endGame}>End Game</button>
-            </div>
-
-            <div 
-                className={`flashcard-container ${isFlipped ? 'flipped' : ''}`} 
-                onClick={() => setIsFlipped(!isFlipped)}
-            >
-                <div className="flashcard-inner">
-                    <div className="flashcard-front">
-                        {frontContent}
-                        <span className="card-hint">Click to flip</span>
+        <div className="game-wrapper">
+             <div className="content-header flashcard-header">
+                <div className="header-left">
+                    <h2>Practice Mode</h2>
+                </div>
+                <div className="header-center">
+                    <div className="card-counter">
+                        {currentIndex + 1} / {sentences.length}
                     </div>
-                    <div className="flashcard-back">
-                        {backContent}
-                        <span className="card-hint">Click to flip back</span>
-                    </div>
+                </div>
+                <div className="header-right">
+                    <button className="btn-outline btn-medium" onClick={endGame}>End Game</button>
                 </div>
             </div>
 
-            <div className="game-controls">
-                <button className="add-btn btn-secondary" onClick={handlePrev}>← Previous</button>
-                <button className="add-btn btn-secondary" onClick={toggleDifficult}>
-                    {currentCard && currentCard.progress && currentCard.progress.difficult ? 'Unmark Difficult' : 'Mark Difficult'}
-                </button>
-                <button className="add-btn" onClick={handleNext}>Next →</button>
+            <div className="flashcard-stage">
+                <div 
+                    className={`flashcard-container ${isFlipped ? 'flipped' : ''}`} 
+                    onClick={() => setIsFlipped(!isFlipped)}
+                >
+                    <div className="flashcard-inner">
+                        <div className="flashcard-front">
+                            {frontContent}
+                            <div className="card-hint">
+                                <span className="material-symbols-outlined">touch_app</span>
+                                <span>Click to flip</span>
+                            </div>
+                        </div>
+                        <div className="flashcard-back">
+                            {backContent}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="game-controls">
+                    <div className="control-group-left">
+                         <button className="icon-control-btn" onClick={handlePrev} title="Previous">
+                            <span className="material-symbols-outlined">arrow_back</span>
+                        </button>
+                         <button 
+                            className={`icon-control-btn difficult-btn ${currentCard?.progress?.difficult ? 'active-warning' : ''}`} 
+                            onClick={toggleDifficult}
+                            title="Toggle Difficult"
+                        >
+                            <span className="material-symbols-outlined">warning</span>
+                            <span>{currentCard?.progress?.difficult ? 'Difficult' : 'Mark as Difficult'}</span>
+                        </button>
+                    </div>
+
+                    <button className="btn-primary btn-large-next" onClick={handleNext}>
+                        <span>Next Card</span>
+                        <span className="material-symbols-outlined">arrow_forward</span>
+                    </button>
+                </div>
             </div>
         </div>
     );
