@@ -100,10 +100,16 @@ function WordPage() {
 
     return (
         <div className="main-content">
-            <div className="word-page-container">
-                <div className="word-page-header">
+            <div className="content-header">
+                <div className="header-top">
+                    <div className="header-title">
                     <h2>My Word List</h2>
-                    <button className="add-btn btn-delete-all" onClick={deleteAllWords}>Delete All</button>
+                    <p>Review and manage your saved Mandarin vocabulary</p>
+                    </div>
+                    <button className="btn-outline btn-delete" onClick={deleteAllWords}>
+                        <span className="material-symbols-outlined">delete</span>
+                        <span>Delete All</span>
+                    </button>
                 </div>
                 {isLoading && <p>Loading words...</p>}
                 {error && <p className="error-message">{error}</p>}
@@ -113,11 +119,14 @@ function WordPage() {
                         <div 
                             key={word.id} 
                             onClick={() => handleWordClick(word)}
-                            className="word-card"
+                            className="card"
                         >
-                            <div className="word-card-chinese">{word.chineseWord}</div>
-                            <div className="word-card-pinyin">{word.pinyin}</div>
-                            <div className="word-card-english">{word.englishTranslation}</div>
+                            <div className="card-content">
+                            <h3 className="card-hanzi hanzi-font">{word.chineseWord}</h3>
+                            <p className="card-pinyin">{word.pinyin}</p>
+                            <p className="card-english">{word.englishTranslation}</p>
+
+                            </div>
                         </div>
                     ))}
                 </div>
@@ -128,46 +137,55 @@ function WordPage() {
                             <button className="modal-close-btn" onClick={() => setSelectedWord(null)}>×</button>
                             
                             {!isEditing ? (
-                                <div className="word-detail-view">
-                                    <h2 className="word-detail-chinese">{selectedWord.chineseWord}</h2>
+                                <div className="word-detail-container">
+                                    <h2 className="hanzi-font word-detail-hanzi">{selectedWord.chineseWord}</h2>
                                     <h3 className="word-detail-pinyin">{selectedWord.pinyin}</h3>
                                     <p className="word-detail-english">{selectedWord.englishTranslation}</p>
                                     
                                     <div className="word-detail-actions">
-                                        <button onClick={() => setIsEditing(true)}>Edit</button>
-                                        <button onClick={handleDelete} className="btn-delete">Delete</button>
+                                        <button onClick={() => setIsEditing(true)} className="btn-primary">
+                                            <span className="material-symbols-outlined">edit</span>
+                                            <span>Edit Word</span>
+                                        </button>
+                                        <button onClick={handleDelete} className="btn-outline btn-delete">
+                                            <span className="material-symbols-outlined">delete</span>
+                                            <span>Delete</span>
+                                        </button>
                                     </div>
                                 </div>
                             ) : (
                                 <form onSubmit={handleUpdate} className="word-edit-form">
                                     <h3>Edit Word</h3>
-                                    <div>
-                                        <label>Chinese Word</label>
+                                    <div className="word-edit-group">
+                                        <label className="login-label">Chinese Word</label>
                                         <input 
+                                            type="text"
                                             value={editForm.chineseWord}
                                             onChange={e => setEditForm({...editForm, chineseWord: e.target.value})}
-                                            className="word-edit-input"
+                                            className="login-input"
                                         />
                                     </div>
-                                    <div>
-                                        <label>Pinyin</label>
+                                    <div className="word-edit-group">
+                                        <label className="login-label">Pinyin</label>
                                         <input 
+                                            type="text"
                                             value={editForm.pinyin}
                                             onChange={e => setEditForm({...editForm, pinyin: e.target.value})}
-                                            className="word-edit-input"
+                                            className="login-input"
                                         />
                                     </div>
-                                    <div>
-                                        <label>English Translation</label>
+                                    <div className="word-edit-group">
+                                        <label className="login-label">English Translation</label>
                                         <input 
+                                            type="text"
                                             value={editForm.englishTranslation}
                                             onChange={e => setEditForm({...editForm, englishTranslation: e.target.value})}
-                                            className="word-edit-input"
+                                            className="login-input"
                                         />
                                     </div>
                                     <div className="word-edit-actions">
-                                        <button type="submit" className="btn-save">Save</button>
-                                        <button type="button" onClick={() => setIsEditing(false)} className="btn-cancel">Cancel</button>
+                                        <button type="button" onClick={() => setIsEditing(false)} className="btn-outline">Cancel</button>
+                                        <button type="submit" className="btn-primary">Save Changes</button>
                                     </div>
                                 </form>
                             )}

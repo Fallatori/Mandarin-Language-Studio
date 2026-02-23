@@ -237,6 +237,23 @@ body {
 	opacity: 0.9;
 }
 
+.btn-warning {
+	background-color: #ef4444;
+	color: white;
+	border: none;
+	padding: 0.625rem 1.5rem;
+	border-radius: 0.75rem;
+	font-weight: 600;
+	font-size: 0.875rem;
+	cursor: pointer;
+	box-shadow: 0 10px 15px -3px rgba(239, 68, 68, 0.2);
+	transition: opacity 0.2s;
+}
+
+.btn-warning:hover {
+	opacity: 0.9;
+}
+
 /* Search & Filters */
 .toolbar {
 	display: flex;
@@ -691,4 +708,64 @@ body {
 	justify-content: center;
 	align-items: center;
 	width: 100%;
+}
+
+/* --- Word Detail Modal --- */
+.word-detail-container {
+	text-align: center;
+	padding: 1rem;
+}
+
+.word-detail-hanzi {
+	font-size: 3rem;
+	margin: 0 0 1rem 0;
+	color: var(--text-heading);
+}
+
+.word-detail-pinyin {
+	font-size: 1.5rem;
+	color: var(--primary-color);
+	margin: 0 0 1rem 0;
+}
+
+.word-detail-english {
+	font-size: 1.125rem;
+	color: #94a3b8;
+	font-style: italic;
+	margin-bottom: 2rem;
+}
+
+.word-detail-actions {
+	display: flex;
+	gap: 1rem;
+	justify-content: center;
+}
+
+.btn-delete {
+	border-color: #ef4444;
+	color: #ef4444;
+}
+
+.btn-delete:hover {
+	background-color: rgba(239, 68, 68, 0.1);
+	border-color: #ef4444;
+}
+
+.word-edit-form h3 {
+	color: var(--text-heading);
+	margin-bottom: 1.5rem;
+}
+
+.word-edit-group {
+	margin-bottom: 1rem;
+}
+
+.word-edit-group:last-of-type {
+	margin-bottom: 1.5rem;
+}
+
+.word-edit-actions {
+	display: flex;
+	gap: 1rem;
+	justify-content: flex-end;
 }
