@@ -1275,3 +1275,12 @@ body {
 	padding: 0.75rem 1.5rem;
 	font-size: 1rem;
 }
+
+.centered-pills {
+    justify-content: center;
+}
+
+.pill-btn {
+    padding: 0.75rem 2rem;
+    font-size: 1rem;
+}

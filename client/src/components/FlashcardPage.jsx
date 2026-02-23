@@ -253,42 +253,45 @@ function FlashcardPage() {
                             <p>Test your memory with spaced repetition</p>
                         </div>
                     </div>
-
-                    <div className="filter-pills">
-                        <button
-                            className={`pill-btn ${filter === 'all' ? 'active' : ''}`}
-                            onClick={() => {
-                                setHasChosenScope(true);
-                                setFilter('all');
-                            }}
-                            disabled={isFilterEmpty('all')}
-                        >
-                            All ({countsLabel('all')})
-                        </button>
-                        <button
-                            className={`pill-btn ${filter === 'due' ? 'active' : ''}`}
-                            onClick={() => {
-                                setHasChosenScope(true);
-                                setFilter('due');
-                            }}
-                            disabled={isFilterEmpty('due')}
-                        >
-                            Due ({countsLabel('due')})
-                        </button>
-                        <button
-                            className={`pill-btn ${filter === 'difficult' ? 'active' : ''}`}
-                            onClick={() => {
-                                setHasChosenScope(true);
-                                setFilter('difficult');
-                            }}
-                            disabled={isFilterEmpty('difficult')}
-                        >
-                            Difficult ({countsLabel('difficult')})
-                        </button>
-                    </div>
                 </div>
 
                 <div className="flashcard-setup-container">
+                    <div className="filter-selection-group">
+                        <label className="deck-selector-label">Filter Cards:</label>
+                        <div className="filter-pills centered-pills">
+                            <button
+                                className={`pill-btn ${filter === 'all' ? 'active' : ''}`}
+                                onClick={() => {
+                                    setHasChosenScope(true);
+                                    setFilter('all');
+                                }}
+                                disabled={isFilterEmpty('all')}
+                            >
+                                All ({countsLabel('all')})
+                            </button>
+                            <button
+                                className={`pill-btn ${filter === 'due' ? 'active' : ''}`}
+                                onClick={() => {
+                                    setHasChosenScope(true);
+                                    setFilter('due');
+                                }}
+                                disabled={isFilterEmpty('due')}
+                            >
+                                Due ({countsLabel('due')})
+                            </button>
+                            <button
+                                className={`pill-btn ${filter === 'difficult' ? 'active' : ''}`}
+                                onClick={() => {
+                                    setHasChosenScope(true);
+                                    setFilter('difficult');
+                                }}
+                                disabled={isFilterEmpty('difficult')}
+                            >
+                                Difficult ({countsLabel('difficult')})
+                            </button>
+                        </div>
+                    </div>
+
                     <div className="deck-selector-group">
                         <label className="deck-selector-label">Select Deck:</label>
                         <div className="deck-selector-row">
