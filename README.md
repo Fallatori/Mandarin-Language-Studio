@@ -82,3 +82,6 @@ Game idea - Recognice the word, see the word and the it will mix with other word
 Game idea - Recognice the correct chinese word, select between similar characters.
 Game idea - Radical game, choose a word that matches a certain radical.
 Find other radical based games
+Find a logo to use for the project, change away from default google icon
+Add chinese keyboard
+Add way to search for pinyin in the searchbar
