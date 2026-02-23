@@ -212,12 +212,14 @@ function DeckPage() {
                         className="btn-outline btn-small" 
                         onClick={handleSelectAllFiltered}
                     >
+                        <span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>check_box</span>
                         Select All
                     </button>
                     <button 
                         className="btn-outline btn-small" 
                         onClick={handleDeselectAllFiltered}
                     >
+                        <span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>check_box_outline_blank</span>
                         Clear
                     </button>
                 </div>
@@ -254,6 +256,7 @@ function DeckPage() {
                         disabled={currentPage === 1}
                         onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                     >
+                        <span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>chevron_left</span>
                         Previous
                     </button>
                     <span className="pagination-info">
@@ -265,6 +268,7 @@ function DeckPage() {
                         onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                     >
                         Next
+                        <span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>chevron_right</span>
                     </button>
                 </div>
             )}
@@ -280,10 +284,6 @@ function DeckPage() {
 
     const renderNameInput = () => (
         <div className="deck-step-container">
-            <div className="deck-summary-info">
-                <span className="summary-count">{selectedIds.size}</span>
-                <div className="summary-label">Sentences Selected</div>
-            </div>
             <div className="form-group">
                 <label className="input-label">Deck Name</label>
                 <input 
@@ -336,7 +336,6 @@ function DeckPage() {
                     <button onClick={() => handleDelete(selectedDeck.id)} className="btn-outline btn-delete">
                         <span className="material-symbols-outlined">delete</span> Delete
                     </button>
-                    <button onClick={handleClose} className="btn-outline">Close</button>
                 </div>
             </div>
         );

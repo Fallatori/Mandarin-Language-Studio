@@ -217,6 +217,12 @@ body {
 	background-color: var(--accent-dark);
 }
 
+.btn-outline:disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+	pointer-events: none;
+}
+
 .btn-primary {
 	display: flex;
 	align-items: center;
@@ -689,6 +695,7 @@ body {
 	border-radius: 0.5rem;
 	color: white;
 	margin-top: 0.5rem;
+	box-sizing: border-box;
 }
 
 .sentence-input {
@@ -1290,4 +1297,28 @@ body {
 .pill-btn {
 	padding: 0.75rem 2rem;
 	font-size: 1rem;
+}
+
+/* --- Pagination Controls --- */
+.pagination-controls {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	gap: 1rem;
+	margin-top: 1rem;
+	padding: 1rem 0;
+	border-top: 1px solid var(--border-color);
+}
+
+.pagination-controls .btn-outline {
+	padding: 0.5rem 1rem;
+	min-width: 80px;
+	justify-content: center;
+}
+
+.pagination-info {
+	color: #94a3b8;
+	font-size: 0.875rem;
+	font-weight: 500;
+	font-variant-numeric: tabular-nums;
 }
