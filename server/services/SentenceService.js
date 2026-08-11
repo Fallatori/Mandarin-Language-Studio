@@ -2,6 +2,8 @@ const jieba = require("nodejieba");
 const pinyin = require("pinyin");
 const translate = require("translate");
 const { Op } = require("sequelize");
+const { httpError } = require("../utils/httpError");
+const WordService = require("./WordService");
 jieba.load();
 
 translate.engine = "google";
@@ -14,6 +16,7 @@ class SentenceService {
 		this.word = db.Word;
 		this.UserSentence = db.UserSentence;
 		this.Deck = db.Deck;
+		this.wordService = new WordService(db);
 	}
 
 	_calculateNextDueAt(xp, difficult) {
@@ -24,10 +27,7 @@ class SentenceService {
 	}
 
 	async recordSentencePractice(sentenceId, userId, transaction) {
-		const sentence = await this.getSentenceById(sentenceId);
-		if (!sentence || sentence.creator_id !== userId) {
-			throw new Error("Sentence not found");
-		}
+		const sentence = await this.getOwnedSentence(sentenceId, userId);
 
 		const now = new Date();
 
@@ -59,10 +59,7 @@ class SentenceService {
 	}
 
 	async setSentenceDifficult(sentenceId, userId, difficult) {
-		const sentence = await this.getSentenceById(sentenceId);
-		if (!sentence || sentence.creator_id !== userId) {
-			throw new Error("Sentence not found");
-		}
+		await this.getOwnedSentence(sentenceId, userId);
 
 		const [progress] = await this.UserSentence.findOrCreate({
 			where: { user_id: userId, sentence_id: sentenceId },
@@ -272,6 +269,15 @@ class SentenceService {
 			});
 	}
 
+	async getOwnedSentence(id, userId) {
+		const sentence = await this.getSentenceById(id);
+		if (!sentence) throw httpError(404, "Sentence not found");
+		if (sentence.creator_id !== userId) {
+			throw httpError(403, "You can only modify sentences you created");
+		}
+		return sentence;
+	}
+
 	async analyzeSentence(chineseText, userId) {
 		const words = jieba.cut(chineseText);
 		const resultWords = [];
@@ -288,13 +294,19 @@ class SentenceService {
 			let wordPinyin = "";
 			let wordTranslation = "";
 			let isNew = false;
+			let isLocked = false;
 			const dbWord = await this.word.findOne({
 				where: { chineseWord: wordString },
 			});
 
 			if (dbWord) {
-				wordPinyin = dbWord.pinyin;
-				wordTranslation = dbWord.englishTranslation;
+				const override = userId
+					? await this.wordService.getUserWord(dbWord.id, userId)
+					: null;
+				wordPinyin = override?.pinyin ?? dbWord.pinyin;
+				wordTranslation =
+					override?.englishTranslation ?? dbWord.englishTranslation;
+				isLocked = !!dbWord.is_locked && dbWord.creator_id !== userId;
 			} else {
 				isNew = true;
 				wordPinyin = pinyin
@@ -327,6 +339,7 @@ class SentenceService {
 				pinyin: wordPinyin,
 				englishTranslation: wordTranslation,
 				isNew,
+				isLocked,
 			});
 		}
 
@@ -435,13 +448,40 @@ class SentenceService {
 					transaction: transaction,
 				});
 
-				if (
-					!created &&
-					w.englishTranslation &&
-					w.englishTranslation !== word.englishTranslation
-				) {
-					word.englishTranslation = w.englishTranslation;
-					await word.save({ transaction });
+				await this.wordService.ensureUserWord(
+					word.id,
+					sentenceData.creator_id,
+					transaction,
+				);
+
+				if (!created && !word.is_locked) {
+					const differs =
+						(w.englishTranslation &&
+							w.englishTranslation !== word.englishTranslation) ||
+						(w.pinyin && w.pinyin !== word.pinyin);
+
+					if (differs) {
+						if (word.creator_id === sentenceData.creator_id) {
+							if (w.englishTranslation) {
+								word.englishTranslation = w.englishTranslation;
+							}
+							if (w.pinyin) word.pinyin = w.pinyin;
+							await word.save({ transaction });
+						} else {
+							await this.wordService.setOverride(
+								word.id,
+								sentenceData.creator_id,
+								{
+									pinyin: w.pinyin !== word.pinyin ? w.pinyin : null,
+									englishTranslation:
+										w.englishTranslation !== word.englishTranslation
+											? w.englishTranslation
+											: null,
+								},
+								transaction,
+							);
+						}
+					}
 				}
 
 				wordAssociations.push({ word: word, position: index });
@@ -483,6 +523,12 @@ class SentenceService {
 					},
 					transaction: transaction,
 				});
+
+				await this.wordService.ensureUserWord(
+					word.id,
+					sentenceData.creator_id,
+					transaction,
+				);
 
 				if (created && !sentenceData.skipWordTranslation) {
 					try {
@@ -545,11 +591,13 @@ class SentenceService {
 		return results;
 	}
 
-	async updateSentence(id, sentence) {
+	async updateSentence(id, sentence, userId) {
+		await this.getOwnedSentence(id, userId);
 		return await this.sentence.update(sentence, { where: { id: id } });
 	}
 
-	async deleteSentence(id) {
+	async deleteSentence(id, userId) {
+		await this.getOwnedSentence(id, userId);
 		return await this.sentence.destroy({ where: { id: id } });
 	}
 

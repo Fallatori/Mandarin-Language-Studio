@@ -39,6 +39,10 @@ module.exports = (sequelize) => {
 				type: DataTypes.BOOLEAN,
 				defaultValue: false,
 			},
+			is_locked: {
+				type: DataTypes.BOOLEAN,
+				defaultValue: false,
+			},
 		},
 		{
 			underscored: true,

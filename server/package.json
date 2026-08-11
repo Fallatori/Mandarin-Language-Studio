@@ -4,7 +4,8 @@
 	"description": "",
 	"main": "index.js",
 	"scripts": {
-		"test": "jest"
+		"test": "jest",
+		"backfill:userwords": "node scripts/backfillUserWords.js"
 	},
 	"keywords": [],
 	"author": "",

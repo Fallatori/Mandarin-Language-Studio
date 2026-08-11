@@ -2,6 +2,17 @@ const express = require("express");
 const router = express.Router();
 const db = require("../models");
 const authenticateToken = require("../middleware/auth");
+const { Op } = require("sequelize");
+
+async function ownedSentenceIds(sentenceIds, userId) {
+	if (!Array.isArray(sentenceIds) || sentenceIds.length === 0) return [];
+
+	const owned = await db.Sentence.findAll({
+		where: { id: { [Op.in]: sentenceIds }, creator_id: userId },
+		attributes: ["id"],
+	});
+	return owned.map((s) => s.id);
+}
 
 router.get("/", authenticateToken, async (req, res) => {
 	try {
@@ -32,8 +43,9 @@ router.post("/", authenticateToken, async (req, res) => {
 			creator_id: req.user.id,
 		});
 
-		if (sentenceIds && sentenceIds.length > 0) {
-			await deck.setSentences(sentenceIds);
+		const allowedIds = await ownedSentenceIds(sentenceIds, req.user.id);
+		if (allowedIds.length > 0) {
+			await deck.setSentences(allowedIds);
 		}
 		res.json(deck);
 	} catch (error) {
@@ -58,7 +70,7 @@ router.put("/:id", authenticateToken, async (req, res) => {
 		await deck.save();
 
 		if (sentenceIds) {
-			await deck.setSentences(sentenceIds);
+			await deck.setSentences(await ownedSentenceIds(sentenceIds, req.user.id));
 		}
 
 		res.json(deck);

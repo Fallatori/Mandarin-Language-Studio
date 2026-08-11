@@ -143,7 +143,7 @@ function SentenceForm({ onAddSentence, isLoading }) {
 
                 <div className="word-preview-list">
                     {previewData && previewData.words.map((word, index) => (
-                        <div key={index} className={`word-preview-item ${word.isNew ? 'new-word' : ''}`}>
+                        <div key={index} className={`word-preview-item ${word.isNew ? 'new-word' : ''} ${word.isLocked ? 'locked-word' : ''}`}>
                             <div className="word-preview-chinese-col">
                                 {word.isNew ? (
                                     <input 
@@ -156,25 +156,26 @@ function SentenceForm({ onAddSentence, isLoading }) {
                                     <div className="word-preview-char">{word.chineseWord}</div>
                                 )}
                                 {word.isNew && <span className="word-preview-badge">NEW</span>}
+                                {word.isLocked && <span className="word-preview-badge badge-locked">LESSON</span>}
                             </div>
                             <div>
                                 <label className="word-preview-label">Pinyin</label>
-                                <input 
-                                    value={word.pinyin || ''} 
+                                <input
+                                    value={word.pinyin || ''}
                                     onChange={(e) => handleWordChange(index, 'pinyin', e.target.value)}
                                     className="word-preview-input"
-                                    disabled={!word.isNew} 
-                                    title={!word.isNew ? "Existing word (cannot edit)" : "Edit Pinyin"}
+                                    disabled={word.isLocked}
+                                    title={word.isLocked ? "Lesson word (cannot be changed)" : "Edit Pinyin"}
                                 />
                             </div>
                             <div>
                                 <label className="word-preview-label">English</label>
-                                <input 
-                                    value={word.englishTranslation || ''} 
+                                <input
+                                    value={word.englishTranslation || ''}
                                     onChange={(e) => handleWordChange(index, 'englishTranslation', e.target.value)}
                                     className="word-preview-input"
-                                    disabled={!word.isNew}
-                                    title={!word.isNew ? "Existing word (cannot edit)" : "Edit Translation"}
+                                    disabled={word.isLocked}
+                                    title={word.isLocked ? "Lesson word (cannot be changed)" : "Edit Translation"}
                                 />
                             </div>
                             <button 

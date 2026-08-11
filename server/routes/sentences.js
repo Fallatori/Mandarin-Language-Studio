@@ -250,6 +250,9 @@ router.patch("/:id/difficult", async (req, res) => {
 		);
 		res.json(updated);
 	} catch (error) {
+		if (error.status) {
+			return res.status(error.status).json({ message: error.message });
+		}
 		console.error("Set difficult error:", error);
 		res.status(500).json({ message: "Failed to update difficult flag." });
 	}
@@ -265,6 +268,9 @@ router.patch("/:id/practice", async (req, res) => {
 		);
 		res.json(updatedSentence);
 	} catch (error) {
+		if (error.status) {
+			return res.status(error.status).json({ message: error.message });
+		}
 		console.error("Error marking sentence as practiced:", error);
 		res.status(500).json({ message: "Failed to mark sentence as practiced." });
 	}
@@ -274,9 +280,9 @@ router.delete("/:id", async (req, res) => {
 	const { id } = req.params;
 
 	try {
-		const sentence = await sentenceService.getSentenceById(id);
+		const sentence = await sentenceService.getOwnedSentence(id, req.user.id);
 
-		if (sentence && sentence.audioFilename) {
+		if (sentence.audioFilename) {
 			const filePath = path.join(
 				__dirname,
 				"..",
@@ -289,9 +295,12 @@ router.delete("/:id", async (req, res) => {
 			}
 		}
 
-		await sentenceService.deleteSentence(id);
+		await sentenceService.deleteSentence(id, req.user.id);
 		res.status(204).send();
 	} catch (error) {
+		if (error.status) {
+			return res.status(error.status).json({ message: error.message });
+		}
 		console.error("Error deleting sentence:", error);
 		res.status(500).json({ message: "Failed to delete sentence." });
 	}

@@ -62,12 +62,12 @@ function WordPage() {
                 navigate('/login');
                 return;
             }
-            alert("Failed to update word");
+            alert(err.response?.data?.error || "Failed to update word");
         }
     };
 
     const handleDelete = async () => {
-        if (!window.confirm("Are you sure you want to delete this word?")) return;
+        if (!window.confirm("Remove this word from your list?")) return;
         try {
             await axios.delete(`${API_URL}/${selectedWord.id}`, { withCredentials: true });
             setWords(prev => prev.filter(w => w.id !== selectedWord.id));
@@ -78,7 +78,7 @@ function WordPage() {
                 navigate('/login');
                 return;
             }
-            alert("Failed to delete word");
+            alert(err.response?.data?.error || "Failed to delete word");
         }
     };
 
@@ -141,15 +141,33 @@ function WordPage() {
                                     <h2 className="hanzi-font word-detail-hanzi">{selectedWord.chineseWord}</h2>
                                     <h3 className="word-detail-pinyin">{selectedWord.pinyin}</h3>
                                     <p className="word-detail-english">{selectedWord.englishTranslation}</p>
-                                    
+
+                                    {selectedWord.isLocked && (
+                                        <p className="word-detail-note">
+                                            <span className="material-symbols-outlined">lock</span>
+                                            Part of a lesson — this word can't be changed.
+                                        </p>
+                                    )}
+                                    {selectedWord.isCustomised && !selectedWord.isLocked && (
+                                        <p className="word-detail-note">
+                                            <span className="material-symbols-outlined">person_edit</span>
+                                            Your own version of this word.
+                                        </p>
+                                    )}
+
                                     <div className="word-detail-actions">
-                                        <button onClick={() => setIsEditing(true)} className="btn-primary">
+                                        <button
+                                            onClick={() => setIsEditing(true)}
+                                            className="btn-primary"
+                                            disabled={selectedWord.isLocked}
+                                            title={selectedWord.isLocked ? "Lesson words can't be edited" : "Edit Word"}
+                                        >
                                             <span className="material-symbols-outlined">edit</span>
                                             <span>Edit Word</span>
                                         </button>
                                         <button onClick={handleDelete} className="btn-outline btn-delete">
                                             <span className="material-symbols-outlined">delete</span>
-                                            <span>Delete</span>
+                                            <span>Remove</span>
                                         </button>
                                     </div>
                                 </div>
@@ -158,11 +176,13 @@ function WordPage() {
                                     <h3>Edit Word</h3>
                                     <div className="word-edit-group">
                                         <label className="login-label">Chinese Word</label>
-                                        <input 
+                                        <input
                                             type="text"
                                             value={editForm.chineseWord}
                                             onChange={e => setEditForm({...editForm, chineseWord: e.target.value})}
                                             className="login-input"
+                                            disabled={!selectedWord.isOwner}
+                                            title={selectedWord.isOwner ? "" : "The characters identify the shared word and can't be changed"}
                                         />
                                     </div>
                                     <div className="word-edit-group">

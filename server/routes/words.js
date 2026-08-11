@@ -35,15 +35,23 @@ router.get("/", async (req, res) => {
 router.put("/:id", async (req, res) => {
 	try {
 		const { id } = req.params;
-		const { chineseWord, pinyin, englishTranslation } = req.body;
+		const { chineseWord, pinyin, englishTranslation, notes } = req.body;
 
-		const updatedWord = await wordService.updateWord(id, {
-			chineseWord,
-			pinyin,
-			englishTranslation,
-		});
+		const updatedWord = await wordService.updateWord(
+			id,
+			{
+				chineseWord,
+				pinyin,
+				englishTranslation,
+				notes,
+			},
+			req.user.id,
+		);
 		res.json(updatedWord);
 	} catch (err) {
+		if (err.status) {
+			return res.status(err.status).json({ error: err.message });
+		}
 		console.error("Error updating word:", err);
 		res.status(500).json({ error: "Failed to update word" });
 	}
@@ -52,9 +60,12 @@ router.put("/:id", async (req, res) => {
 router.delete("/:id", async (req, res) => {
 	try {
 		const { id } = req.params;
-		await wordService.deleteWord(id);
+		await wordService.deleteWord(id, req.user.id);
 		res.status(204).send();
 	} catch (err) {
+		if (err.status) {
+			return res.status(err.status).json({ error: err.message });
+		}
 		console.error("Error deleting word:", err);
 		res.status(500).json({ error: "Failed to delete word" });
 	}
