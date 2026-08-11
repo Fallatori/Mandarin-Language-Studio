@@ -20,7 +20,7 @@ module.exports = (sequelize) => {
 				allowNull: false,
 			},
 			englishTranslation: {
-				type: DataTypes.TEXT,
+				type: DataTypes.STRING(512),
 				allowNull: false,
 			},
 			audioFilename: {

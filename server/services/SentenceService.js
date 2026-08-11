@@ -81,9 +81,25 @@ class SentenceService {
 		return progress;
 	}
 
+	_searchClause(search) {
+		const term = String(search).trim();
+		if (!term) return null;
+
+		const escaped = term.replace(/[\\%_]/g, (char) => `\\${char}`);
+		const like = { [Op.like]: `%${escaped}%` };
+
+		return {
+			[Op.or]: [
+				{ chineseText: like },
+				{ pinyin: like },
+				{ englishTranslation: like },
+			],
+		};
+	}
+
 	async getFlashcardSentences(
 		userId,
-		{ deckId = null, filter = "all", page = 1, limit = 50 } = {},
+		{ deckId = null, filter = "all", page = 1, limit = 50, search = "" } = {},
 	) {
 		const offset = (page - 1) * limit;
 
@@ -95,6 +111,11 @@ class SentenceService {
 			include: [],
 			distinct: true,
 		};
+
+		const searchClause = this._searchClause(search);
+		if (searchClause) {
+			queryOptions.where[Op.and] = [searchClause];
+		}
 
 		if (deckId) {
 			queryOptions.include.push({
@@ -233,9 +254,14 @@ class SentenceService {
 
 	async getSentencesByUser(
 		userId,
-		{ filter = "all", page = 1, limit = 50 } = {},
+		{ filter = "all", page = 1, limit = 50, search = "" } = {},
 	) {
-		return await this.getFlashcardSentences(userId, { filter, page, limit });
+		return await this.getFlashcardSentences(userId, {
+			filter,
+			page,
+			limit,
+			search,
+		});
 	}
 
 	async getSentenceByName(name, userId = null) {
@@ -591,9 +617,22 @@ class SentenceService {
 		return results;
 	}
 
-	async updateSentence(id, sentence, userId) {
-		await this.getOwnedSentence(id, userId);
-		return await this.sentence.update(sentence, { where: { id: id } });
+	async updateSentence(id, updates, userId) {
+		const sentence = await this.getOwnedSentence(id, userId);
+
+		const patch = {};
+		if (updates.pinyin !== undefined) patch.pinyin = String(updates.pinyin).trim();
+		if (updates.englishTranslation !== undefined) {
+			patch.englishTranslation = String(updates.englishTranslation).trim();
+		}
+
+		if (patch.pinyin === "") throw httpError(400, "Pinyin cannot be empty");
+		if (patch.englishTranslation === "") {
+			throw httpError(400, "English translation cannot be empty");
+		}
+		if (Object.keys(patch).length === 0) return sentence;
+
+		return await sentence.update(patch);
 	}
 
 	async deleteSentence(id, userId) {

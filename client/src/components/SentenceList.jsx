@@ -1,7 +1,7 @@
 import React from 'react';
 import SentenceItem from './SentenceItem';
 
-function SentenceList({ sentences, onDeleteSentence, onToggleDifficult, audioBaseUrl }) {
+function SentenceList({ sentences, onDeleteSentence, onToggleDifficult, onEditSentence, audioBaseUrl }) {
     if (!sentences || sentences.length === 0) {
         return <div className="empty-state-message">No sentences found.</div>;
     }
@@ -13,7 +13,8 @@ function SentenceList({ sentences, onDeleteSentence, onToggleDifficult, audioBas
                     key={sentence.id}
                     sentence={sentence}
                     onDeleteSentence={onDeleteSentence}
-                    onToggleDifficult={onToggleDifficult} 
+                    onToggleDifficult={onToggleDifficult}
+                    onEditSentence={onEditSentence}
                     audioBaseUrl={audioBaseUrl}
                 />
             ))}

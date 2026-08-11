@@ -89,18 +89,30 @@ can still edit them; nobody else can edit or override them.
 
 ### Migrating an existing database
 
-"My words" used to be derived from your sentences and is now the `UserWords`
-table, so an existing database needs a one-off backfill. Start the server first
-(it runs `sync({ alter: true })` outside production and adds the new columns),
-then:
+Two one-off steps, in this order.
+
+**1. Check nothing will be truncated.** `Sentences.english_translation` changed
+from `TEXT` to `VARCHAR(512)`, and `sync({ alter: true })` rewrites the column on
+the next start — anything longer is lost. Run this *before* restarting:
 
 ```
 cd server
+npm run check:lengths
+```
+
+It prints the longest value per column and exits non-zero if any row would not
+fit.
+
+**2. Backfill the word lists.** "My words" used to be derived from your sentences
+and is now the `UserWords` table. Start the server (which adds the new columns),
+then:
+
+```
 npm run backfill:userwords
 ```
 
-The script is idempotent. Until it runs, existing users will see an empty word
-list.
+Both scripts are idempotent. Until the backfill runs, existing users will see an
+empty word list.
 
 ## TODO
 
@@ -112,21 +124,23 @@ list.
 - [x] Add option to edit deck — `openEditModal` in `DeckPage` + `PUT /api/decks/:id`
 - [x] Add way to search for pinyin in the searchbar — pinyin is stored toneless (`STYLE_NORMAL`), so plain-letter search matches
 - [x] Plan a word/sentence game — flashcards shipped with Chinese-front / English-front modes, deck + difficulty filters and SRS scheduling
-- [x] verify creator_id matches req.user.id befor delete or update — `getOwnedSentence` / `getOwnedWord` guard every mutating route; deck updates only accept sentences you own. Non-owners get 403, missing rows 404
+- [x] verify creator_id matches req.user.id befor delete or update — `getOwnedSentence` / `getWordInUserList` guard every mutating route; deck updates only accept sentences you own. Non-owners get 403, missing rows 404
+
+- [x] Add option to edit pinyin from sentence — `PUT /api/sentences/:id` takes pinyin + English; edit button on each sentence card. Chinese stays fixed so the word breakdown remains valid
+- [x] Look into moving modal logic to own component — `components/Modal.jsx`, used by `SentencePage`, `DeckPage` and `WordPage`
+- [x] Disable outer scroll when in the modal — body scroll lock in `Modal`, with scrollbar-width compensation so the page doesn't jump. Escape also closes
+- [x] english_translation now saves a text in database, should be varchar(string) — `Sentences.english_translation` is now `VARCHAR(512)`. `chineseText` stays `TEXT`
+- [x] Sentence search now runs server-side across every page, not just the loaded one
 
 ### In progress
 
-- [ ] Add option to edit pinyin from sentence — a word's pinyin is editable on the word page, but a sentence's own pinyin is read-only (no `PUT /api/sentences/:id`)
 - [ ] Find a logo to use for the project, change away from default google icon — `logo-yellow.svg` is the favicon, but the sidebar still uses the Material Symbols `translate` glyph
 - [ ] Add documentation — README covers setup only; no API or architecture docs
 
 ### Not started
 
-- [ ] english_translation now saves a text in database, should be varchar(string). Please look into this — still `DataTypes.TEXT` (so is `chineseText`)
-- [ ] Disable outer scroll when in the modal — no body scroll lock; the page behind the modal still scrolls
-- [ ] Look into moving modal logic to own component — overlay/close markup is duplicated in `SentencePage`, `DeckPage` and `WordPage`
 - [ ] Add chinese keyboard
-- [ ] Sentence search only filters the currently loaded page, so matches on later pages are missed
+- [ ] Deck builder still loads up to 1000 sentences and filters them client-side (`DeckPage`), unlike the sentence page
 
 ### Game ideas
 

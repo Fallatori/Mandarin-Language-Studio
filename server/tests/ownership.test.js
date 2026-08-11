@@ -3,6 +3,7 @@ jest.mock("nodejieba", () => ({ load: jest.fn(), cut: jest.fn(() => []) }));
 jest.mock("translate", () => ({ default: jest.fn(), engine: "google" }));
 jest.mock("pinyin", () => ({ default: jest.fn(() => []), STYLE_NORMAL: 0 }));
 
+const { Op } = require("sequelize");
 const WordService = require("../services/WordService");
 const SentenceService = require("../services/SentenceService");
 
@@ -279,5 +280,89 @@ describe("SentenceService ownership", () => {
 			service.updateSentence("s1", { pinyin: "x" }, OWNER),
 		).rejects.toMatchObject({ status: 403 });
 		expect(service.sentence.update).not.toHaveBeenCalled();
+	});
+});
+
+describe("editing a sentence", () => {
+	function ownSentence() {
+		const sentence = {
+			id: "s1",
+			creator_id: OWNER,
+			pinyin: "ni hao",
+			englishTranslation: "Hello",
+			update: jest.fn(function (patch) {
+				Object.assign(this, patch);
+				return this;
+			}),
+		};
+		const service = sentenceServiceWith(sentence);
+		return { service, sentence };
+	}
+
+	test("updates pinyin and translation, trimming whitespace", async () => {
+		const { service, sentence } = ownSentence();
+
+		await service.updateSentence(
+			"s1",
+			{ pinyin: "  ni hao ma  ", englishTranslation: " How are you? " },
+			OWNER,
+		);
+
+		expect(sentence.update).toHaveBeenCalledWith({
+			pinyin: "ni hao ma",
+			englishTranslation: "How are you?",
+		});
+	});
+
+	test("leaves the other field alone when only one is sent", async () => {
+		const { service, sentence } = ownSentence();
+
+		await service.updateSentence("s1", { pinyin: "ni hao ma" }, OWNER);
+
+		expect(sentence.update).toHaveBeenCalledWith({ pinyin: "ni hao ma" });
+	});
+
+	test("chineseText is never writable", async () => {
+		const { service, sentence } = ownSentence();
+
+		await service.updateSentence(
+			"s1",
+			{ chineseText: "changed", pinyin: "ni hao ma" },
+			OWNER,
+		);
+
+		expect(sentence.update).toHaveBeenCalledWith({ pinyin: "ni hao ma" });
+	});
+
+	test("rejects blanking a field", async () => {
+		const { service, sentence } = ownSentence();
+
+		await expect(
+			service.updateSentence("s1", { pinyin: "   " }, OWNER),
+		).rejects.toMatchObject({ status: 400 });
+		expect(sentence.update).not.toHaveBeenCalled();
+	});
+});
+
+describe("sentence search", () => {
+	const service = Object.create(SentenceService.prototype);
+
+	test("blank searches produce no clause", () => {
+		expect(service._searchClause("")).toBeNull();
+		expect(service._searchClause("   ")).toBeNull();
+	});
+
+	test("matches chinese, pinyin and english", () => {
+		const clause = service._searchClause("hao");
+		const fields = clause[Op.or].map((entry) => Object.keys(entry)[0]);
+
+		expect(fields).toEqual(["chineseText", "pinyin", "englishTranslation"]);
+		expect(clause[Op.or][1].pinyin[Op.like]).toBe("%hao%");
+	});
+
+	test("escapes LIKE wildcards so they match literally", () => {
+		const clause = service._searchClause("100%_x");
+
+		expect(clause[Op.or][0].chineseText[Op.like]).toBe("%100\\%\\_x%");
 	});
 });

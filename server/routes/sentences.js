@@ -146,11 +146,12 @@ router.post("/translate", async (req, res) => {
 
 router.get("/", async (req, res) => {
 	try {
-		const { filter, page, limit } = req.query;
+		const { filter, page, limit, search } = req.query;
 		const result = await sentenceService.getSentencesByUser(req.user.id, {
 			filter: filter || "all",
 			page: page || 1,
 			limit: limit || 20,
+			search: search || "",
 		});
 
 		res.json(result);
@@ -237,6 +238,29 @@ router.post("/", upload.single("audioFile"), async (req, res) => {
 		}
 
 		res.status(500).json({ message: "Failed to add sentence." });
+	}
+});
+
+router.put("/:id", async (req, res) => {
+	try {
+		const { pinyin, englishTranslation } = req.body;
+
+		if (pinyin === undefined && englishTranslation === undefined) {
+			return res.status(400).json({ message: "Nothing to update." });
+		}
+
+		const updated = await sentenceService.updateSentence(
+			req.params.id,
+			{ pinyin, englishTranslation },
+			req.user.id,
+		);
+		res.json(updated);
+	} catch (error) {
+		if (error.status) {
+			return res.status(error.status).json({ message: error.message });
+		}
+		console.error("Error updating sentence:", error);
+		res.status(500).json({ message: "Failed to update sentence." });
 	}
 });
 

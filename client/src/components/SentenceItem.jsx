@@ -1,6 +1,6 @@
 import React from 'react';
 
-function SentenceItem({ sentence, onDeleteSentence, onToggleDifficult, audioBaseUrl }) {
+function SentenceItem({ sentence, onDeleteSentence, onToggleDifficult, onEditSentence, audioBaseUrl }) {
     
 
     const hasNextDue = sentence.progress?.nextDueAt;
@@ -58,8 +58,19 @@ function SentenceItem({ sentence, onDeleteSentence, onToggleDifficult, audioBase
                         <span className="material-symbols-outlined">check_circle</span>
                     </button> */}
                     
-                    <button 
-                        className="icon-btn" 
+                    <button
+                        className="icon-btn"
+                        title="Edit pinyin & translation"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (onEditSentence) onEditSentence(sentence);
+                        }}
+                    >
+                        <span className="material-symbols-outlined">edit</span>
+                    </button>
+
+                    <button
+                        className="icon-btn"
                         title="Delete"
                         onClick={(e) => {
                             e.stopPropagation();

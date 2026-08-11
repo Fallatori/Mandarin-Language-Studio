@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import Modal from './Modal';
 
 const API_URL = 'http://localhost:5001/api/words';
 
@@ -131,11 +132,9 @@ function WordPage() {
                     ))}
                 </div>
 
-                {selectedWord && (
-                    <div className="modal-overlay" onClick={() => setSelectedWord(null)}>
-                        <div className="modal-content" onClick={e => e.stopPropagation()}>
-                            <button className="modal-close-btn" onClick={() => setSelectedWord(null)}>×</button>
-                            
+                <Modal isOpen={!!selectedWord} onClose={() => setSelectedWord(null)}>
+                    {selectedWord && (
+                        <>
                             {!isEditing ? (
                                 <div className="word-detail-container">
                                     <h2 className="hanzi-font word-detail-hanzi">{selectedWord.chineseWord}</h2>
@@ -209,9 +208,9 @@ function WordPage() {
                                     </div>
                                 </form>
                             )}
-                        </div>
-                    </div>
-                )}
+                        </>
+                    )}
+                </Modal>
 
             </div>
         </div>

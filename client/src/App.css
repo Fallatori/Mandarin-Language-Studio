@@ -537,6 +537,10 @@ body {
 	z-index: 10;
 }
 
+.modal-close-btn .material-symbols-outlined {
+	font-size: 1.5rem;
+}
+
 .modal-close-btn:hover {
 	color: #fff;
 	background-color: rgba(255, 255, 255, 0.1);
@@ -1571,6 +1575,14 @@ body {
 
 .word-preview-badge.badge-locked {
 	color: #94a3b8;
+}
+
+.edit-sentence-hanzi {
+	margin: 0 0 1.25rem;
+	color: var(--text-heading);
+	font-size: 1.5rem;
+	font-weight: 700;
+	text-align: center;
 }
 
 .word-detail-note {

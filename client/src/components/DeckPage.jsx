@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import Modal from './Modal';
 
 function DeckPage() {
     const navigate = useNavigate();
@@ -356,23 +357,17 @@ function DeckPage() {
                 </div>
             </div>
 
-            {/* MODAL OVERLAY */}
-            {modalMode && (
-                <div className="modal-overlay" onClick={handleClose}>
-                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                        <button className="modal-close-btn" onClick={handleClose}>
-                             <span className="material-symbols-outlined">close</span>
-                        </button>
-                        
-                        {modalMode === 'view' ? renderViewModal() : (
-                            <>
-                                <h3 className="modal-title">{modalMode === 'create' ? 'Create New Deck' : 'Edit Deck'}</h3>
-                                {step === 1 ? renderSelectionList() : renderNameInput()}
-                            </>
-                        )}
-                    </div>
-                </div>
-            )}
+            <Modal
+                isOpen={!!modalMode}
+                onClose={handleClose}
+                title={modalMode && modalMode !== 'view'
+                    ? (modalMode === 'create' ? 'Create New Deck' : 'Edit Deck')
+                    : null}
+            >
+                {modalMode === 'view'
+                    ? renderViewModal()
+                    : (step === 1 ? renderSelectionList() : renderNameInput())}
+            </Modal>
 
             {isLoading ? (
                 <div className="loading-message">Loading decks...</div>
