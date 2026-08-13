@@ -27,7 +27,32 @@ cd server
 npm install
 ```
 
-5. **Start the backend server**
+5. **Build the Chinese-English dictionary**
+
+```
+npm run build:dictionary
+```
+
+- Downloads CC-CEDICT and writes `server/data/cedict.json` (~115,000 entries).
+- The file is gitignored and regenerable, so a fresh clone must run this once.
+  Story analysis and word glosses fail with a clear message until it exists.
+- Pass a local path to skip the download:
+  `npm run build:dictionary -- ./cedict_ts.u8`
+
+6. **Optional: enable sentence translation**
+
+- Word glosses come from the offline dictionary and need no configuration.
+  Whole-sentence English uses Google Cloud Translation, which is optional —
+  without it stories still import, just with empty translations.
+- Add **one** of the following to `server/.env`:
+
+```
+GOOGLE_TRANSLATE_API_KEY=your-api-key
+# or, for a service account:
+GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/key.json
+```
+
+7. **Start the backend server**
 
 ```
 npm start
@@ -35,14 +60,14 @@ npm start
 
 - The backend runs on [http://localhost:5001](http://localhost:5001)
 
-6. **Install frontend dependencies**
+8. **Install frontend dependencies**
 
 ```
 cd ../client
 npm install
 ```
 
-7. **Start the frontend app**
+9. **Start the frontend app**
 
 ```
 npm run dev
@@ -50,7 +75,7 @@ npm run dev
 
 - The frontend runs on [http://localhost:5173](http://localhost:5173)
 
-8. **Login/Register**
+10. **Login/Register**
 
 - Open [http://localhost:5173](http://localhost:5173) in your browser.
 - Register a new user or login with your credentials.
@@ -87,6 +112,32 @@ has it.
 Teacher/lesson words are marked `is_locked` on the `Words` row. Their creator
 can still edit them; nobody else can edit or override them.
 
+Each `UserWords` row also carries a `status` of `new`, `learning` or `known`.
+Words picked up from a story start as `new`; words added by saving a sentence
+start as `learning`. Practising a sentence six times promotes all of its words
+to `known`. Promotion only moves upward, so setting a status by hand is never
+silently undone.
+
+## Stories
+
+Paste a text (or import a prepared JSON file) and the app shows which words in it
+you already know, adds the ones you don't to your list, and harvests sentences
+from it.
+
+- Sentences are split on `。！？；…`. Anything at or under the length cap
+  (30 characters by default, adjustable per import) is saved automatically.
+- Longer sentences are broken into clauses on `，、；：`, and you click one or
+  more adjacent clauses to save just that part as a sentence.
+- Word glosses come from the offline CC-CEDICT dictionary, so adding a story's
+  vocabulary costs nothing and needs no API key.
+- Limits: one pasted story per day, and 200 unique words per story. Override in
+  `server/.env` with `STORY_DAILY_LIMIT` and `STORY_MAX_WORDS`; set
+  `STORY_DAILY_LIMIT=0` to turn the daily cap off while testing.
+- **JSON import** takes your own sentence boundaries as final — nothing is split
+  or capped in length — and does not count against the daily limit, since it
+  makes no external calls. `words` is optional per sentence; leave it out and the
+  server segments that sentence for you. Example format is in the import dialog.
+
 ### Migrating an existing database
 
 Two one-off steps, in this order.
@@ -114,6 +165,20 @@ npm run backfill:userwords
 Both scripts are idempotent. Until the backfill runs, existing users will see an
 empty word list.
 
+**3. Story support.** Restarting the server also creates `Stories`,
+`StorySentences` and `UserStories`, adds `story_count` to
+`UserTranslationQuotas`, and widens `UserWords.status` from
+`ENUM('learning','mastered')` to `ENUM('new','learning','known')`. MySQL blanks
+any row holding a value removed from an enum, so check first — it should return
+only `learning`:
+
+```
+SELECT status, COUNT(*) FROM UserWords GROUP BY status;
+```
+
+No data migration is needed: `learning` stays valid. Remember
+`npm run build:dictionary` (setup step 5) before using stories.
+
 ## TODO
 
 ### Done
@@ -122,7 +187,7 @@ empty word list.
 - [x] Create a option for bulk upload data — `BulkUploadForm` + `POST /api/sentences/bulk`, with duplicate detection
 - [x] Add option to search for sentence in the deckbuilder. — search + pagination in the deck modal toolbar
 - [x] Add option to edit deck — `openEditModal` in `DeckPage` + `PUT /api/decks/:id`
-- [x] Add way to search for pinyin in the searchbar — pinyin is stored toneless (`STYLE_NORMAL`), so plain-letter search matches
+- [x] Add way to search for pinyin in the searchbar — `_searchClause` searches the pinyin column. **Caveat:** stored pinyin actually carries tone marks (`kě yǐ`, not `keyi`), so plain-letter searches do not match. Needs either a toneless search column or tone stripping in the query
 - [x] Plan a word/sentence game — flashcards shipped with Chinese-front / English-front modes, deck + difficulty filters and SRS scheduling
 - [x] verify creator_id matches req.user.id befor delete or update — `getOwnedSentence` / `getWordInUserList` guard every mutating route; deck updates only accept sentences you own. Non-owners get 403, missing rows 404
 
@@ -131,6 +196,10 @@ empty word list.
 - [x] Disable outer scroll when in the modal — body scroll lock in `Modal`, with scrollbar-width compensation so the page doesn't jump. Escape also closes
 - [x] english_translation now saves a text in database, should be varchar(string) — `Sentences.english_translation` is now `VARCHAR(512)`. `chineseText` stays `TEXT`
 - [x] Sentence search now runs server-side across every page, not just the loaded one
+- [x] Import a longer story, see which words you already know, and harvest words + sentences from it — `StoryPage`, `POST /api/stories/analyze` and `/api/stories`, with punctuation splitting and clause picking for long sentences
+- [x] Import a story from JSON with splits and translations already done — `StoryImportForm` + `POST /api/stories/import`; your sentence boundaries are kept as-is
+- [x] Track which words are learned — `UserWords.status` (`new`/`learning`/`known`), promoted automatically after six practices of a sentence
+- [x] Replace the unofficial `translate` scrape — sentence English now uses Google Cloud Translation, word glosses use the offline CC-CEDICT dictionary
 
 ### In progress
 

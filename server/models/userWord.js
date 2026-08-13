@@ -36,7 +36,7 @@ module.exports = (sequelize) => {
 				allowNull: true,
 			},
 			status: {
-				type: DataTypes.ENUM("learning", "mastered"),
+				type: DataTypes.ENUM("new", "learning", "known"),
 				defaultValue: "learning",
 			},
 		},

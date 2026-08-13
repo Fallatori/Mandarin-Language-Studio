@@ -16,6 +16,10 @@ module.exports = (sequelize) => {
 				type: DataTypes.INTEGER,
 				defaultValue: 0,
 			},
+			storyCount: {
+				type: DataTypes.INTEGER,
+				defaultValue: 0,
+			},
 		},
 		{
 			tableName: "UserTranslationQuotas",

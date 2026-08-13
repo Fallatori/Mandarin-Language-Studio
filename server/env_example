@@ -6,3 +6,14 @@ DIALECT=mysql
 DIALECTMODEL=mysql2
 HOST=localhost
 FRONTEND_URL=your_frontend_url
+
+# Optional. Sentence translation only — word meanings come from the offline
+# dictionary and need no key. Use one of these two.
+GOOGLE_TRANSLATE_API_KEY=your_google_translate_api_key
+# GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/service-account.json
+
+# Story limits. For both of these, 0 means NO LIMIT (not "zero allowed").
+# Leave them out to get the defaults: 1 story per day, 200 unique words per story.
+# The effective values are printed when the server starts.
+# STORY_DAILY_LIMIT=0     # 0 = unlimited stories per day (handy while testing)
+# STORY_MAX_WORDS=0       # 0 = unlimited unique words per story

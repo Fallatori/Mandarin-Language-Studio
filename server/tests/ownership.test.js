@@ -1,6 +1,5 @@
-// SentenceService loads these at require time; `translate` is ESM-only.
+// SentenceService loads these at require time.
 jest.mock("nodejieba", () => ({ load: jest.fn(), cut: jest.fn(() => []) }));
-jest.mock("translate", () => ({ default: jest.fn(), engine: "google" }));
 jest.mock("pinyin", () => ({ default: jest.fn(() => []), STYLE_NORMAL: 0 }));
 
 const { Op } = require("sequelize");

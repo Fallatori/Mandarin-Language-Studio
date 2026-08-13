@@ -1,12 +1,15 @@
 const jieba = require("nodejieba");
 const pinyin = require("pinyin");
-const translate = require("translate");
 const { Op } = require("sequelize");
 const { httpError } = require("../utils/httpError");
 const WordService = require("./WordService");
+const TranslationService = require("./TranslationService");
+const DictionaryService = require("./DictionaryService");
 jieba.load();
 
-translate.engine = "google";
+// Words are promoted to "known" once their sentences reach this xp, the point
+// at which _calculateNextDueAt has stretched the interval to three days.
+const PROMOTE_AT_XP = 6;
 
 class SentenceService {
 	constructor(db) {
@@ -17,6 +20,8 @@ class SentenceService {
 		this.UserSentence = db.UserSentence;
 		this.Deck = db.Deck;
 		this.wordService = new WordService(db);
+		this.translationService = new TranslationService();
+		this.dictionary = new DictionaryService();
 	}
 
 	_calculateNextDueAt(xp, difficult) {
@@ -54,6 +59,14 @@ class SentenceService {
 		// Keep legacy sentence sorting working.
 		sentence.lastPracticedAt = now;
 		await sentence.save({ transaction });
+
+		if (progress.xp >= PROMOTE_AT_XP) {
+			await this.wordService.promoteWordsForSentence(
+				sentenceId,
+				userId,
+				transaction,
+			);
+		}
 
 		return progress;
 	}
@@ -335,26 +348,33 @@ class SentenceService {
 				isLocked = !!dbWord.is_locked && dbWord.creator_id !== userId;
 			} else {
 				isNew = true;
-				wordPinyin = pinyin
-					.default(wordString, {
-						style: pinyin.STYLE_NORMAL,
-						segment: true,
-					})
-					.map((arr) => arr[0])
-					.join("");
-				try {
-					if (userId) {
-						await this.checkAndIncrementQuota(userId);
+				const entry = this.dictionary.lookup(wordString);
+
+				if (entry) {
+					wordPinyin = entry.pinyin;
+					wordTranslation = entry.englishTranslation;
+				} else {
+					wordPinyin = pinyin
+						.default(wordString, {
+							style: pinyin.STYLE_NORMAL,
+							segment: true,
+						})
+						.map((arr) => arr[0])
+						.join("");
+					try {
+						if (userId) {
+							await this.checkAndIncrementQuota(userId);
+						}
+						wordTranslation = await this.translationService.translate(
+							wordString,
+							"en",
+						);
+					} catch (e) {
+						if (e.message.includes("Daily translation limit")) {
+							throw e;
+						}
+						console.log("Translation failed for preview", e);
 					}
-					wordTranslation = await translate.default(wordString, {
-						from: "zh",
-						to: "en",
-					});
-				} catch (e) {
-					if (e.message.includes("Daily translation limit")) {
-						throw e;
-					}
-					console.log("Translation failed for preview", e);
 				}
 			}
 
@@ -397,8 +417,6 @@ class SentenceService {
 	async addSentence(sentenceData) {
 		const { definedWords } = sentenceData;
 
-		this._updateJiebaDictionary(definedWords);
-
 		const transaction = await this.client.transaction();
 		try {
 			const { wordAssociations, finalSentencePinyin } =
@@ -429,16 +447,6 @@ class SentenceService {
 			console.error("Error adding sentence:", error);
 			await transaction.rollback();
 			throw error;
-		}
-	}
-
-	_updateJiebaDictionary(definedWords) {
-		if (definedWords && Array.isArray(definedWords)) {
-			definedWords.forEach((w) => {
-				if (w.chineseWord) {
-					jieba.insertWord(w.chineseWord);
-				}
-			});
 		}
 	}
 
@@ -556,19 +564,24 @@ class SentenceService {
 					transaction,
 				);
 
-				if (created && !sentenceData.skipWordTranslation) {
-					try {
-						await this.checkAndIncrementQuota(
-							sentenceData.creator_id,
-							transaction,
-						);
-						const translation = await translate.default(wordString, {
-							from: "zh",
-							to: "en",
-						});
-						word.englishTranslation = translation;
+				if (created && !word.englishTranslation) {
+					const entry = this.dictionary.lookup(wordString);
+					if (entry) {
+						word.englishTranslation = entry.englishTranslation;
 						await word.save({ transaction });
-					} catch (e) {}
+					} else if (!sentenceData.skipWordTranslation) {
+						try {
+							await this.checkAndIncrementQuota(
+								sentenceData.creator_id,
+								transaction,
+							);
+							word.englishTranslation = await this.translationService.translate(
+								wordString,
+								"en",
+							);
+							await word.save({ transaction });
+						} catch (e) {}
+					}
 				}
 
 				wordAssociations.push({ word: word, position: index });
@@ -664,7 +677,7 @@ class SentenceService {
 
 	async translateText(text, targetLang = "en") {
 		try {
-			return await translate.default(text, { to: targetLang });
+			return await this.translationService.translate(text, targetLang);
 		} catch (error) {
 			console.error("Translation service error:", error);
 			throw error;

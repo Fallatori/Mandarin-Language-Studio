@@ -1,6 +1,8 @@
 const { Op } = require("sequelize");
 const { httpError } = require("../utils/httpError");
 
+const STATUSES = ["new", "learning", "known"];
+
 class WordService {
 	constructor(db) {
 		this.client = db.sequelize;
@@ -37,15 +39,53 @@ class WordService {
 			.map((row) => this._merge(row.Word, row, userId));
 	}
 
-	async ensureUserWord(wordId, userId, transaction) {
+	async ensureUserWord(wordId, userId, transaction, status) {
 		if (!userId) return null;
+
+		const defaults = { user_id: userId, word_id: wordId };
+		if (status) defaults.status = status;
 
 		const [userWord] = await this.userWord.findOrCreate({
 			where: { user_id: userId, word_id: wordId },
-			defaults: { user_id: userId, word_id: wordId },
+			defaults,
 			transaction,
 		});
 		return userWord;
+	}
+
+	async setStatus(wordId, userId, status) {
+		if (!STATUSES.includes(status)) {
+			throw httpError(400, `Status must be one of: ${STATUSES.join(", ")}`);
+		}
+
+		const { word, userWord } = await this.getWordInUserList(wordId, userId);
+		const target = userWord || (await this.ensureUserWord(wordId, userId));
+
+		await target.update({ status });
+		return this._merge(word, target, userId);
+	}
+
+	async promoteWordsForSentence(sentenceId, userId, transaction) {
+		const sentence = await this.sentence.findOne({
+			where: { id: sentenceId },
+			include: [{ model: this.word, through: { attributes: [] } }],
+			transaction,
+		});
+		if (!sentence || !sentence.Words || sentence.Words.length === 0) return 0;
+
+		const [affected] = await this.userWord.update(
+			{ status: "known" },
+			{
+				where: {
+					user_id: userId,
+					word_id: { [Op.in]: sentence.Words.map((w) => w.id) },
+					status: { [Op.in]: ["new", "learning"] },
+				},
+				transaction,
+			},
+		);
+
+		return affected;
 	}
 
 	async getUserWord(wordId, userId, transaction) {

@@ -57,6 +57,23 @@ router.put("/:id", async (req, res) => {
 	}
 });
 
+router.patch("/:id/status", async (req, res) => {
+	try {
+		const updated = await wordService.setStatus(
+			req.params.id,
+			req.user.id,
+			req.body.status,
+		);
+		res.json(updated);
+	} catch (err) {
+		if (err.status) {
+			return res.status(err.status).json({ error: err.message });
+		}
+		console.error("Error updating word status:", err);
+		res.status(500).json({ error: "Failed to update word status" });
+	}
+});
+
 router.delete("/:id", async (req, res) => {
 	try {
 		const { id } = req.params;

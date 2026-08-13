@@ -22,6 +22,7 @@ const sentencesRouter = require("./routes/sentences");
 const authRouter = require("./routes/auth");
 const wordsRouter = require("./routes/words");
 const decksRouter = require("./routes/decks");
+const storiesRouter = require("./routes/stories");
 
 // --- Middleware ---
 app.use(
@@ -40,6 +41,7 @@ app.use("/api/sentences", sentencesRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/words", wordsRouter);
 app.use("/api/decks", decksRouter);
+app.use("/api/stories", storiesRouter);
 
 // --- Helper Functions for File DB ---
 const readSentences = () => {
@@ -79,4 +81,14 @@ app.listen(PORT, () => {
 	console.log(`Server listening on port ${PORT}`);
 	console.log(`Audio files served from: ${UPLOADS_DIR}`);
 	console.log(`Sentence data stored in: ${DB_PATH}`);
+
+	const describeLimit = (value, fallback) => {
+		const limit = value === undefined || value === "" ? fallback : Number(value);
+		if (!Number.isFinite(limit)) return `${fallback} (ignored invalid "${value}")`;
+		return limit <= 0 ? "no limit" : String(limit);
+	};
+	console.log(
+		`Story limits: ${describeLimit(process.env.STORY_DAILY_LIMIT, 1)} per day, ` +
+			`${describeLimit(process.env.STORY_MAX_WORDS, 200)} words per story`,
+	);
 });

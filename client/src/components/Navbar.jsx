@@ -42,6 +42,10 @@ function Navbar() {
                         <span className="material-symbols-outlined">book_2</span>
                         <span>Word List</span>
                     </Link>
+                    <Link to="/stories" className={isActive('/stories')}>
+                        <span className="material-symbols-outlined">auto_stories</span>
+                        <span>Stories</span>
+                    </Link>
                     <Link to="/cards" className={isActive('/cards')}>
                         <span className="material-symbols-outlined">history</span>
                         <span>Recap</span>
