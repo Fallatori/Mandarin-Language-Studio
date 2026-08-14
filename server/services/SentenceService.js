@@ -32,7 +32,14 @@ class SentenceService {
 		return new Date(Date.now() + days * 24 * 60 * 60 * 1000);
 	}
 
-	async recordSentencePractice(sentenceId, userId, transaction) {
+	static resolvePracticeXp(xp) {
+		if (xp === undefined) return 1;
+		const n = Number(xp);
+		if (n !== 1 && n !== 3) throw httpError(400, "xp must be 1 or 3");
+		return n;
+	}
+
+	async recordSentencePractice(sentenceId, userId, transaction, xpDelta = 1) {
 		const sentence = await this.getOwnedSentence(sentenceId, userId);
 
 		const now = new Date();
@@ -49,7 +56,7 @@ class SentenceService {
 			transaction,
 		});
 
-		progress.xp = (progress.xp || 0) + 1;
+		progress.xp = (progress.xp || 0) + xpDelta;
 		progress.lastPracticedAt = now;
 		progress.nextDueAt = this._calculateNextDueAt(
 			progress.xp,
@@ -323,6 +330,46 @@ class SentenceService {
 			throw httpError(403, "You can only modify sentences you created");
 		}
 		return sentence;
+	}
+
+	async _pinyinForToken(wordString, userId) {
+		const dbWord = await this.word.findOne({
+			where: { chineseWord: wordString },
+		});
+		if (dbWord) {
+			const override = userId
+				? await this.wordService.getUserWord(dbWord.id, userId)
+				: null;
+			return override?.pinyin ?? dbWord.pinyin;
+		}
+
+		const entry = this.dictionary.lookup(wordString);
+		if (entry) return entry.pinyin;
+
+		return pinyin
+			.default(wordString, {
+				style: pinyin.STYLE_NORMAL,
+				segment: true,
+			})
+			.map((arr) => arr[0])
+			.join(" ");
+	}
+
+	async tokenizeSentence(chineseText, userId) {
+		const words = jieba.cut(chineseText);
+		const tokens = [];
+
+		for (const wordString of words) {
+			if (wordString.trim() === "" || /[\p{P}\p{Z}]/u.test(wordString)) {
+				continue;
+			}
+			tokens.push({
+				chineseWord: wordString,
+				pinyin: await this._pinyinForToken(wordString, userId),
+			});
+		}
+
+		return tokens;
 	}
 
 	async analyzeSentence(chineseText, userId) {
@@ -665,13 +712,14 @@ class SentenceService {
 		return await this.sentence.destroy({ where: { creator_id: userId } });
 	}
 
-	async markAsPracticed(id, userId) {
+	async markAsPracticed(id, userId, xpDelta = 1) {
 		const transaction = await this.client.transaction();
 		try {
 			const progress = await this.recordSentencePractice(
 				id,
 				userId,
 				transaction,
+				xpDelta,
 			);
 			await transaction.commit();
 

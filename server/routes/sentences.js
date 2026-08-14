@@ -241,6 +241,26 @@ router.post("/", upload.single("audioFile"), async (req, res) => {
 	}
 });
 
+router.get("/:id/tokens", async (req, res) => {
+	try {
+		const sentence = await sentenceService.getOwnedSentence(
+			req.params.id,
+			req.user.id,
+		);
+		const tokens = await sentenceService.tokenizeSentence(
+			sentence.chineseText,
+			req.user.id,
+		);
+		res.json(tokens);
+	} catch (error) {
+		if (error.status) {
+			return res.status(error.status).json({ message: error.message });
+		}
+		console.error("Error tokenizing sentence:", error);
+		res.status(500).json({ message: "Failed to tokenize sentence." });
+	}
+});
+
 router.put("/:id", async (req, res) => {
 	try {
 		const { pinyin, englishTranslation } = req.body;
@@ -286,9 +306,11 @@ router.patch("/:id/practice", async (req, res) => {
 	const { id } = req.params;
 
 	try {
+		const xpDelta = SentenceService.resolvePracticeXp(req.body?.xp);
 		const updatedSentence = await sentenceService.markAsPracticed(
 			id,
 			req.user.id,
+			xpDelta,
 		);
 		res.json(updatedSentence);
 	} catch (error) {

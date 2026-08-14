@@ -200,6 +200,7 @@ No data migration is needed: `learning` stays valid. Remember
 - [x] Add option to edit deck — `openEditModal` in `DeckPage` + `PUT /api/decks/:id`
 - [x] Add way to search for pinyin in the searchbar — `_searchClause` searches the pinyin column *and* a `pinyin_search` column holding the toneless, spaceless form, so `keyi`, `ke yi` and `kě yǐ` all match. `v` is accepted for `ü` the way an IME does (`lv` finds 绿)
 - [x] Plan a word/sentence game — flashcards shipped with Chinese-front / English-front modes, deck + difficulty filters and SRS scheduling
+- [x] Learn sentence Recap mode — match English to one of three Chinese sentences, rebuild character order, then type pinyin with a single-hanzi IME. A clean round is 3 XP; a miss shows the compare screen, finishes the remaining stages, and scores 1 XP
 - [x] verify creator_id matches req.user.id befor delete or update — `getOwnedSentence` / `getWordInUserList` guard every mutating route; deck updates only accept sentences you own. Non-owners get 403, missing rows 404
 
 - [x] Add option to edit pinyin from sentence — `PUT /api/sentences/:id` takes pinyin + English; edit button on each sentence card. Chinese stays fixed so the word breakdown remains valid
@@ -224,7 +225,7 @@ No data migration is needed: `learning` stays valid. Remember
 
 ### Game ideas
 
-Game idea - Get a english sentence, select the correct chinese sentence. (1 correct, 2 random from the users data)
+Game idea - Get a english sentence, select the correct chinese sentence. (1 correct, 2 random from the users data) — shipped as Recap → Learn sentence (plus character tiles and a pinyin IME)
 Game idea - Write the chinese word for a color, when the color shows up
 Game idea - association game, you get the word drink need to match with sentences or words that has something to do with the word "drink"
 Game idea - Recognice the word, see the word and the it will mix with other words and you need to click the correct one.

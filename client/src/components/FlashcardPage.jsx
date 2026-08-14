@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
+import LearnSentenceGame from './LearnSentenceGame';
 
 function FlashcardPage() {
     const navigate = useNavigate();
@@ -9,7 +10,7 @@ function FlashcardPage() {
     const [sentences, setSentences] = useState([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isFlipped, setIsFlipped] = useState(false);
-    const [gameMode, setGameMode] = useState(null); // 'CN_FRONT' or 'EN_FRONT'
+    const [gameMode, setGameMode] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const [decks, setDecks] = useState([]);
     const [selectedDeckId, setSelectedDeckId] = useState("");
@@ -118,8 +119,19 @@ function FlashcardPage() {
                 return;
             }
 
-            const shuffled = data.sort(() => 0.5 - Math.random());
-            setSentences(shuffled);
+            if (mode === 'LEARN') {
+                const withEnglish = data.filter(
+                    (sentence) => (sentence.englishTranslation || '').trim().length > 0,
+                );
+                if (withEnglish.length < 3) {
+                    alert("Need at least 3 sentences with an English translation.");
+                    return;
+                }
+                setSentences(withEnglish);
+            } else {
+                const shuffled = data.sort(() => 0.5 - Math.random());
+                setSentences(shuffled);
+            }
             setGameMode(mode);
             setCurrentIndex(0);
             setIsFlipped(false);
@@ -216,8 +228,24 @@ function FlashcardPage() {
     }, [sentences.length]);
 
 
+    const handleLearnRoundDone = useCallback((targetId) => {
+        if (sessionFilter !== 'due') return false;
+
+        const current = sentences.find((sentence) => sentence.id === targetId);
+        if (!current) return false;
+        if (current.progress && current.progress.difficult) return false;
+
+        const nextSentences = sentences.filter((sentence) => sentence.id !== targetId);
+        setSentences(nextSentences);
+        if (nextSentences.length === 0) {
+            endGame();
+            return true;
+        }
+        return false;
+    }, [sessionFilter, sentences, endGame]);
+
     useEffect(() => {
-        if (!gameMode) return;
+        if (!gameMode || gameMode === 'LEARN') return;
 
         const handleKeyDown = (e) => {
             if (e.key === 'ArrowRight' || e.key === ' ') {
@@ -351,6 +379,20 @@ function FlashcardPage() {
                                     <span>Chinese on back</span>
                                 </div>
                             </button>
+
+                            <button
+                                className="mode-card"
+                                onClick={() => startGame('LEARN')}
+                                disabled={modeDisabled || (filterCounts[filter] ?? 0) < 3}
+                            >
+                                <div className="mode-icon">
+                                    <span className="material-symbols-outlined">school</span>
+                                </div>
+                                <div className="mode-info">
+                                    <h3>Learn sentence</h3>
+                                    <span>English match, then word order, then pinyin</span>
+                                </div>
+                            </button>
                        </div>
                     </div>
                 </div>
@@ -360,6 +402,16 @@ function FlashcardPage() {
 
     if (isLoading) return <div className="loading-message">Loading cards...</div>;
     if (sentences.length === 0) return <div className="empty-state-message">No sentences found to practice</div>;
+
+    if (gameMode === 'LEARN') {
+        return (
+            <LearnSentenceGame
+                sentences={sentences}
+                onExit={endGame}
+                onRoundDone={handleLearnRoundDone}
+            />
+        );
+    }
 
     const currentCard = sentences[currentIndex];
 
