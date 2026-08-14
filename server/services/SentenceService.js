@@ -2,6 +2,7 @@ const jieba = require("nodejieba");
 const pinyin = require("pinyin");
 const { Op } = require("sequelize");
 const { httpError } = require("../utils/httpError");
+const { normalizePinyin } = require("../utils/pinyinSearch");
 const WordService = require("./WordService");
 const TranslationService = require("./TranslationService");
 const DictionaryService = require("./DictionaryService");
@@ -98,16 +99,23 @@ class SentenceService {
 		const term = String(search).trim();
 		if (!term) return null;
 
-		const escaped = term.replace(/[\\%_]/g, (char) => `\\${char}`);
-		const like = { [Op.like]: `%${escaped}%` };
+		const escape = (value) => value.replace(/[\\%_]/g, (char) => `\\${char}`);
+		const like = { [Op.like]: `%${escape(term)}%` };
 
-		return {
-			[Op.or]: [
-				{ chineseText: like },
-				{ pinyin: like },
-				{ englishTranslation: like },
-			],
-		};
+		const clauses = [
+			{ chineseText: like },
+			{ pinyin: like },
+			{ englishTranslation: like },
+		];
+
+		const toneless = normalizePinyin(term);
+		if (toneless) {
+			clauses.push({
+				pinyinSearch: { [Op.like]: `%${escape(toneless)}%` },
+			});
+		}
+
+		return { [Op.or]: clauses };
 	}
 
 	async getFlashcardSentences(

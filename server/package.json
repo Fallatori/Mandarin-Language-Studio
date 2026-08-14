@@ -7,7 +7,8 @@
 		"test": "jest",
 		"backfill:userwords": "node scripts/backfillUserWords.js",
 		"check:lengths": "node scripts/checkTextLengths.js",
-		"build:dictionary": "node scripts/buildDictionary.js"
+		"build:dictionary": "node scripts/buildDictionary.js",
+		"backfill:pinyinsearch": "node scripts/backfillPinyinSearch.js"
 	},
 	"keywords": [],
 	"author": "",

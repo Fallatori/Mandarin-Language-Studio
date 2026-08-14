@@ -165,6 +165,17 @@ npm run backfill:userwords
 Both scripts are idempotent. Until the backfill runs, existing users will see an
 empty word list.
 
+**2b. Backfill pinyin search.** Searching now matches toneless pinyin, so `keyi`
+finds `kě yǐ`. Restart the server (which adds `pinyin_search` to `Words` and
+`Sentences`), then fill it for existing rows:
+
+```
+npm run backfill:pinyinsearch          # dry run, prints what it would change
+npm run backfill:pinyinsearch -- --apply
+```
+
+New and edited rows populate the column automatically via a model hook.
+
 **3. Story support.** Restarting the server also creates `Stories`,
 `StorySentences` and `UserStories`, adds `story_count` to
 `UserTranslationQuotas`, and widens `UserWords.status` from
@@ -187,7 +198,7 @@ No data migration is needed: `learning` stays valid. Remember
 - [x] Create a option for bulk upload data — `BulkUploadForm` + `POST /api/sentences/bulk`, with duplicate detection
 - [x] Add option to search for sentence in the deckbuilder. — search + pagination in the deck modal toolbar
 - [x] Add option to edit deck — `openEditModal` in `DeckPage` + `PUT /api/decks/:id`
-- [x] Add way to search for pinyin in the searchbar — `_searchClause` searches the pinyin column. **Caveat:** stored pinyin actually carries tone marks (`kě yǐ`, not `keyi`), so plain-letter searches do not match. Needs either a toneless search column or tone stripping in the query
+- [x] Add way to search for pinyin in the searchbar — `_searchClause` searches the pinyin column *and* a `pinyin_search` column holding the toneless, spaceless form, so `keyi`, `ke yi` and `kě yǐ` all match. `v` is accepted for `ü` the way an IME does (`lv` finds 绿)
 - [x] Plan a word/sentence game — flashcards shipped with Chinese-front / English-front modes, deck + difficulty filters and SRS scheduling
 - [x] verify creator_id matches req.user.id befor delete or update — `getOwnedSentence` / `getWordInUserList` guard every mutating route; deck updates only accept sentences you own. Non-owners get 403, missing rows 404
 

@@ -5,6 +5,7 @@ jest.mock("pinyin", () => ({ default: jest.fn(() => []), STYLE_NORMAL: 0 }));
 const { Op } = require("sequelize");
 const WordService = require("../services/WordService");
 const SentenceService = require("../services/SentenceService");
+const { normalizePinyin } = require("../utils/pinyinSearch");
 
 const OWNER = "owner-uuid";
 const OTHER = "other-uuid";
@@ -351,17 +352,61 @@ describe("sentence search", () => {
 		expect(service._searchClause("   ")).toBeNull();
 	});
 
-	test("matches chinese, pinyin and english", () => {
+	test("matches chinese, pinyin, english and toneless pinyin", () => {
 		const clause = service._searchClause("hao");
 		const fields = clause[Op.or].map((entry) => Object.keys(entry)[0]);
 
-		expect(fields).toEqual(["chineseText", "pinyin", "englishTranslation"]);
+		expect(fields).toEqual([
+			"chineseText",
+			"pinyin",
+			"englishTranslation",
+			"pinyinSearch",
+		]);
 		expect(clause[Op.or][1].pinyin[Op.like]).toBe("%hao%");
+	});
+
+	test("strips tone marks and spacing from the search term", () => {
+		const clause = service._searchClause("kě yǐ");
+
+		expect(clause[Op.or][3].pinyinSearch[Op.like]).toBe("%keyi%");
+	});
+
+	test("accepts v for ü, as an IME does", () => {
+		const clause = service._searchClause("lv");
+
+		expect(clause[Op.or][3].pinyinSearch[Op.like]).toBe("%lu%");
+	});
+
+	test("a search with no latin letters skips the toneless branch", () => {
+		const clause = service._searchClause("可以");
+		const fields = clause[Op.or].map((entry) => Object.keys(entry)[0]);
+
+		expect(fields).not.toContain("pinyinSearch");
 	});
 
 	test("escapes LIKE wildcards so they match literally", () => {
 		const clause = service._searchClause("100%_x");
 
 		expect(clause[Op.or][0].chineseText[Op.like]).toBe("%100\\%\\_x%");
+	});
+});
+
+describe("pinyin normalisation", () => {
+	test("tone marks, spacing and case all collapse", () => {
+		expect(normalizePinyin("kě yǐ yòng")).toBe("keyiyong");
+		expect(normalizePinyin("KE YI")).toBe("keyi");
+		expect(normalizePinyin("hui4 yi4")).toBe("huiyi");
+	});
+
+	test("ü, v and u all reach the same key", () => {
+		expect(normalizePinyin("lǜ")).toBe("lu");
+		expect(normalizePinyin("lü")).toBe("lu");
+		expect(normalizePinyin("lv")).toBe("lu");
+	});
+
+	test("non-pinyin input normalises to an empty string", () => {
+		expect(normalizePinyin("可以")).toBe("");
+		expect(normalizePinyin("")).toBe("");
+		expect(normalizePinyin(null)).toBe("");
 	});
 });

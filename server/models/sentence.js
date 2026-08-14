@@ -1,4 +1,5 @@
 const { DataTypes } = require("sequelize");
+const { attachPinyinSearch } = require("../utils/pinyinSearch");
 
 module.exports = (sequelize) => {
 	// Define the Sentence model
@@ -18,6 +19,10 @@ module.exports = (sequelize) => {
 			pinyin: {
 				type: DataTypes.STRING,
 				allowNull: false,
+			},
+			pinyinSearch: {
+				type: DataTypes.STRING,
+				allowNull: true,
 			},
 			englishTranslation: {
 				type: DataTypes.STRING(512),
@@ -45,8 +50,12 @@ module.exports = (sequelize) => {
 			underscored: true,
 			timestamps: true,
 			tableName: "Sentences",
+			indexes: [{ fields: ["pinyin_search"] }],
 		},
 	);
+
+	attachPinyinSearch(Sentence);
+
 	Sentence.associate = (models) => {
 		Sentence.belongsToMany(models.Word, { through: models.SentenceWord });
 		Sentence.belongsToMany(models.User, { through: models.UserSentence });
