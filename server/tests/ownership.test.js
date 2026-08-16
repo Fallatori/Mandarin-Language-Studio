@@ -51,6 +51,7 @@ function wordServiceWith({ word, userWord, userWordCount = 0 }) {
 		Word: {
 			findOne: jest.fn().mockResolvedValue(word),
 			destroy: jest.fn(),
+			create: jest.fn().mockResolvedValue(word),
 		},
 		Sentence: {},
 		UserWord: {
@@ -408,5 +409,27 @@ describe("pinyin normalisation", () => {
 		expect(normalizePinyin("可以")).toBe("");
 		expect(normalizePinyin("")).toBe("");
 		expect(normalizePinyin(null)).toBe("");
+	});
+});
+
+describe("addWord", () => {
+	test("latin-only input is rejected", async () => {
+		const service = wordServiceWith({ word: null });
+
+		await expect(
+			service.addWord({ chineseWord: "woaini" }, OWNER),
+		).rejects.toMatchObject({ status: 400 });
+	});
+
+	test("an existing shared word is attached, not rewritten", async () => {
+		const word = makeWord({ chineseWord: "我" });
+		const userWord = makeUserWord();
+		const service = wordServiceWith({ word, userWord });
+
+		const result = await service.addWord({ chineseWord: "我" }, OWNER);
+
+		expect(result.chineseWord).toBe("我");
+		expect(service.word.create).not.toHaveBeenCalled();
+		expect(service.userWord.findOrCreate).toHaveBeenCalled();
 	});
 });

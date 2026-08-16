@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import Modal from './Modal';
+import PinyinIme from './PinyinIme';
 
 const API_URL = 'http://localhost:5001/api/words';
 
@@ -12,7 +13,9 @@ function WordPage() {
     const [error, setError] = useState(null);
     const [selectedWord, setSelectedWord] = useState(null);
     const [isEditing, setIsEditing] = useState(false);
-    const [editForm, setEditForm] = useState({ chineseWord: '', pinyin: '', englishTranslation: '' });
+    const [isAdding, setIsAdding] = useState(false);
+    const [addForm, setAddForm] = useState({ chineseWord: '', pinyin: '', englishTranslation: '' });
+    const [addError, setAddError] = useState('');
 
     useEffect(() => {
         const fetchWords = async () => {
@@ -67,6 +70,32 @@ function WordPage() {
         }
     };
 
+    const handleAdd = async (e) => {
+        e.preventDefault();
+        setAddError('');
+        if (/[a-zA-Z]/.test(addForm.chineseWord)) {
+            setAddError('Convert pinyin to hanzi with Tab, Space, or 1–9.');
+            return;
+        }
+        try {
+            const response = await axios.post(API_URL, addForm, { withCredentials: true });
+            const created = response.data;
+            setWords((prev) => {
+                if (prev.some((word) => word.id === created.id)) return prev;
+                return [created, ...prev];
+            });
+            setIsAdding(false);
+            setAddForm({ chineseWord: '', pinyin: '', englishTranslation: '' });
+        } catch (err) {
+            console.error("Failed to add word", err);
+            if (err.response && err.response.status === 401) {
+                navigate('/login');
+                return;
+            }
+            setAddError(err.response?.data?.error || "Failed to add word");
+        }
+    };
+
     const handleDelete = async () => {
         if (!window.confirm("Remove this word from your list?")) return;
         try {
@@ -107,10 +136,23 @@ function WordPage() {
                     <h2>My Word List</h2>
                     <p>Review and manage your saved Mandarin vocabulary</p>
                     </div>
-                    <button className="btn-outline btn-delete" onClick={deleteAllWords}>
-                        <span className="material-symbols-outlined">delete</span>
-                        <span>Delete All</span>
-                    </button>
+                    <div className="action-buttons">
+                        <button
+                            className="btn-primary"
+                            onClick={() => {
+                                setAddError('');
+                                setAddForm({ chineseWord: '', pinyin: '', englishTranslation: '' });
+                                setIsAdding(true);
+                            }}
+                        >
+                            <span className="material-symbols-outlined">add</span>
+                            <span>Add Word</span>
+                        </button>
+                        <button className="btn-outline btn-delete" onClick={deleteAllWords}>
+                            <span className="material-symbols-outlined">delete</span>
+                            <span>Delete All</span>
+                        </button>
+                    </div>
                 </div>
                 {isLoading && <p>Loading words...</p>}
                 {error && <p className="error-message">{error}</p>}
@@ -131,6 +173,50 @@ function WordPage() {
                         </div>
                     ))}
                 </div>
+
+                <Modal isOpen={isAdding} onClose={() => setIsAdding(false)}>
+                    <form onSubmit={handleAdd} className="word-edit-form">
+                        <h3>Add Word</h3>
+                        {addError && <p className="error-message">{addError}</p>}
+                        <div className="word-edit-group">
+                            <label className="login-label">Chinese Word</label>
+                            <PinyinIme
+                                className="login-input"
+                                value={addForm.chineseWord}
+                                onChange={(chineseWord) => setAddForm((prev) => ({ ...prev, chineseWord }))}
+                                onCommit={(item) => {
+                                    setAddForm((prev) => ({
+                                        ...prev,
+                                        pinyin: prev.pinyin || item.pinyin || '',
+                                    }));
+                                }}
+                                required
+                            />
+                        </div>
+                        <div className="word-edit-group">
+                            <label className="login-label">Pinyin</label>
+                            <input
+                                type="text"
+                                value={addForm.pinyin}
+                                onChange={(e) => setAddForm({ ...addForm, pinyin: e.target.value })}
+                                className="login-input"
+                            />
+                        </div>
+                        <div className="word-edit-group">
+                            <label className="login-label">English Translation</label>
+                            <input
+                                type="text"
+                                value={addForm.englishTranslation}
+                                onChange={(e) => setAddForm({ ...addForm, englishTranslation: e.target.value })}
+                                className="login-input"
+                            />
+                        </div>
+                        <div className="word-edit-actions">
+                            <button type="button" onClick={() => setIsAdding(false)} className="btn-outline">Cancel</button>
+                            <button type="submit" className="btn-primary">Add to list</button>
+                        </div>
+                    </form>
+                </Modal>
 
                 <Modal isOpen={!!selectedWord} onClose={() => setSelectedWord(null)}>
                     {selectedWord && (

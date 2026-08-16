@@ -7,6 +7,23 @@ const authenticateToken = require("../middleware/auth");
 
 router.use(authenticateToken);
 
+router.post("/", async (req, res) => {
+	try {
+		const { chineseWord, pinyin, englishTranslation } = req.body;
+		const created = await wordService.addWord(
+			{ chineseWord, pinyin, englishTranslation },
+			req.user.id,
+		);
+		res.status(201).json(created);
+	} catch (err) {
+		if (err.status) {
+			return res.status(err.status).json({ error: err.message });
+		}
+		console.error("Error adding word:", err);
+		res.status(500).json({ error: "Failed to add word" });
+	}
+});
+
 router.delete("/all", async (req, res) => {
 	try {
 		await wordService.deleteAllWordsByUser(req.user.id);

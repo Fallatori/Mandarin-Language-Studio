@@ -186,6 +186,46 @@ class WordService {
 		return { removedFromList: true, deletedShared: true };
 	}
 
+	async addWord({ chineseWord, pinyin, englishTranslation }, userId) {
+		const trimmed = String(chineseWord || "").trim();
+		if (!trimmed) {
+			throw httpError(400, "Chinese word is required");
+		}
+		if (!/\p{Script=Han}/u.test(trimmed)) {
+			throw httpError(400, "Chinese word must contain hanzi");
+		}
+
+		let py = String(pinyin || "").trim();
+		let en = String(englishTranslation || "").trim();
+
+		const existing = await this.word.findOne({ where: { chineseWord: trimmed } });
+		if (existing) {
+			const userWord = await this.ensureUserWord(existing.id, userId);
+			return this._merge(existing, userWord, userId);
+		}
+
+		if (!py || !en) {
+			const DictionaryService = require("./DictionaryService");
+			const entry = new DictionaryService().lookup(trimmed);
+			if (!py && entry?.pinyin) py = entry.pinyin;
+			if (!en && entry?.englishTranslation) en = entry.englishTranslation;
+		}
+		if (!py) {
+			throw httpError(400, "Pinyin is required for that word");
+		}
+
+		const word = await this.word.create({
+			chineseWord: trimmed,
+			pinyin: py,
+			englishTranslation: en,
+			creator_id: userId,
+			is_public: false,
+		});
+
+		const userWord = await this.ensureUserWord(word.id, userId);
+		return this._merge(word, userWord, userId);
+	}
+
 	async deleteAllWordsByUser(userId) {
 		const rows = await this.userWord.findAll({
 			where: { user_id: userId },

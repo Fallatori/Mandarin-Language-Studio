@@ -460,7 +460,7 @@ function LearnSentenceGame({ sentences, onExit, onRoundDone }) {
             return;
         }
 
-        if (event.key === ' ') {
+        if (event.key === ' ' || event.key === 'Tab') {
             event.preventDefault();
             if (candidates.length) commitCandidate(candidates[selected], raw);
             return;
@@ -468,14 +468,6 @@ function LearnSentenceGame({ sentences, onExit, onRoundDone }) {
 
         if (event.key !== 'Enter') return;
         event.preventDefault();
-        if (!raw.trim()) {
-            handleCheck();
-            return;
-        }
-        if (candidates.length) {
-            commitCandidate(candidates[selected], raw);
-            return;
-        }
         handleCheck();
     };
 

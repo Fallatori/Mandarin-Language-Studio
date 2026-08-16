@@ -1589,6 +1589,73 @@ button.learn-hangman-char.extra {
 	box-shadow: inset 0 0 0 1px var(--primary-color);
 }
 
+.compose-ime {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	border: 1px solid var(--accent-dark);
+	border-radius: 0.75rem;
+	overflow: hidden;
+	background-color: var(--bg-dark);
+}
+
+.compose-ime-cands {
+	display: flex;
+	flex-wrap: nowrap;
+	align-items: center;
+	gap: 0.15rem;
+	min-height: 2.25rem;
+	overflow-x: auto;
+	scrollbar-width: thin;
+	border-bottom: 1px solid var(--accent-dark);
+	background-color: var(--card-dark);
+}
+
+.compose-ime-cand {
+	display: inline-flex;
+	flex: 0 0 auto;
+	align-items: baseline;
+	gap: 0.25rem;
+	padding: 0.3rem 0.45rem;
+	border: none;
+	background: transparent;
+	color: var(--text-heading);
+	cursor: pointer;
+	font-size: 1.05rem;
+	white-space: nowrap;
+}
+
+.compose-ime-cand.current {
+	background-color: rgba(236, 91, 19, 0.16);
+}
+
+.compose-ime-num {
+	font-size: 0.7rem;
+	color: #94a3b8;
+	font-variant-numeric: tabular-nums;
+}
+
+.compose-ime textarea,
+.compose-ime input {
+	width: 100%;
+	border: none;
+	border-radius: 0;
+	box-shadow: none;
+}
+
+.compose-ime textarea:focus,
+.compose-ime input:focus {
+	box-shadow: inset 0 0 0 1px var(--primary-color);
+}
+
+.word-preview-chinese-col .compose-ime {
+	border-radius: 0.5rem;
+}
+
+.word-edit-group .compose-ime {
+	border-radius: 0.75rem;
+}
+
 .learn-reveal {
 	text-align: center;
 	width: 100%;

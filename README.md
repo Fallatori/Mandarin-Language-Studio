@@ -212,6 +212,7 @@ No data migration is needed: `learning` stays valid. Remember
 - [x] Import a story from JSON with splits and translations already done — `StoryImportForm` + `POST /api/stories/import`; your sentence boundaries are kept as-is
 - [x] Track which words are learned — `UserWords.status` (`new`/`learning`/`known`), promoted automatically after six practices of a sentence
 - [x] Replace the unofficial `translate` scrape — sentence English now uses Google Cloud Translation, word glosses use the offline CC-CEDICT dictionary
+- [x] Add chinese keyboard — compose IME on add-sentence, new suggested words, and Add Word. `GET /api/ime` ranks CC-CEDICT by pinyin (`woaini` → 我爱你, then jieba splits 我|爱|你). Recap stage 3 stays lexicon-only so it does not leak the answer
 
 ### In progress
 
@@ -220,7 +221,6 @@ No data migration is needed: `learning` stays valid. Remember
 
 ### Not started
 
-- [ ] Add chinese keyboard
 - [ ] Deck builder still loads up to 1000 sentences and filters them client-side (`DeckPage`), unlike the sentence page
 
 ### Game ideas

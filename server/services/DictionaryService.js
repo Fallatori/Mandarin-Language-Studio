@@ -36,3 +36,4 @@ class DictionaryService {
 }
 
 module.exports = DictionaryService;
+DictionaryService.loadDict = load;

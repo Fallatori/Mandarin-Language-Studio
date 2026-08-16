@@ -23,6 +23,7 @@ const authRouter = require("./routes/auth");
 const wordsRouter = require("./routes/words");
 const decksRouter = require("./routes/decks");
 const storiesRouter = require("./routes/stories");
+const imeRouter = require("./routes/ime");
 
 // --- Middleware ---
 app.use(
@@ -42,6 +43,7 @@ app.use("/api/auth", authRouter);
 app.use("/api/words", wordsRouter);
 app.use("/api/decks", decksRouter);
 app.use("/api/stories", storiesRouter);
+app.use("/api/ime", imeRouter);
 
 // --- Helper Functions for File DB ---
 const readSentences = () => {

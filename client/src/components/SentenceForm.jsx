@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import PinyinIme from './PinyinIme';
 
 function SentenceForm({ onAddSentence, isLoading }) {
     const navigate = useNavigate();
@@ -16,6 +17,10 @@ function SentenceForm({ onAddSentence, isLoading }) {
 
   const handleTranslate = async (sourceText, targetLang, setTargetField) => {
         if (!sourceText.trim()) return;
+        if (targetLang === "en" && /[a-zA-Z]/.test(sourceText)) {
+            setError("Convert pinyin to hanzi before translating to English.");
+            return;
+        }
         
         setIsTranslating(true);
         try {
@@ -51,6 +56,14 @@ function SentenceForm({ onAddSentence, isLoading }) {
     const handleAnalyze = async () => {
         if (!chineseText) {
             setError('Chinese text is required for preview.');
+            return;
+        }
+        if (/[a-zA-Z]/.test(chineseText)) {
+            setError('Convert pinyin to hanzi with Tab, Space, or 1–9 before preview.');
+            return;
+        }
+        if (!/\p{Script=Han}/u.test(chineseText)) {
+            setError('Chinese text must contain hanzi.');
             return;
         }
         setIsTranslating(true);
@@ -146,11 +159,16 @@ function SentenceForm({ onAddSentence, isLoading }) {
                         <div key={index} className={`word-preview-item ${word.isNew ? 'new-word' : ''} ${word.isLocked ? 'locked-word' : ''}`}>
                             <div className="word-preview-chinese-col">
                                 {word.isNew ? (
-                                    <input 
+                                    <PinyinIme
                                         className="word-preview-chinese-input"
                                         placeholder="Word"
                                         value={word.chineseWord}
-                                        onChange={(e) => handleWordChange(index, 'chineseWord', e.target.value)}
+                                        onChange={(next) => handleWordChange(index, 'chineseWord', next)}
+                                        onCommit={(item) => {
+                                            if (!word.pinyin) {
+                                                handleWordChange(index, 'pinyin', item.pinyin || '');
+                                            }
+                                        }}
                                     />
                                 ) : (
                                     <div className="word-preview-char">{word.chineseWord}</div>
@@ -220,10 +238,11 @@ function SentenceForm({ onAddSentence, isLoading }) {
                         {isTranslating ? '...' : 'Suggest Chinese'}
                     </button>
                 </div>
-                <textarea
+                <PinyinIme
                     id="chineseText"
+                    multiline
                     value={chineseText}
-                    onChange={(e) => setChineseText(e.target.value)}
+                    onChange={setChineseText}
                     required
                 />
             </div>

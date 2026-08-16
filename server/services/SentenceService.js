@@ -3,6 +3,7 @@ const pinyin = require("pinyin");
 const { Op } = require("sequelize");
 const { httpError } = require("../utils/httpError");
 const { normalizePinyin } = require("../utils/pinyinSearch");
+const { extraHanzi, sentencePinyinFromWords } = require("../utils/previewWords");
 const WordService = require("./WordService");
 const TranslationService = require("./TranslationService");
 const DictionaryService = require("./DictionaryService");
@@ -372,50 +373,39 @@ class SentenceService {
 		return tokens;
 	}
 
-	async analyzeSentence(chineseText, userId) {
-		const words = jieba.cut(chineseText);
-		const resultWords = [];
-		const sentencePinyinParts = [];
+	async _previewWord(wordString, userId, { allowTranslate = true } = {}) {
+		let wordPinyin = "";
+		let wordTranslation = "";
+		let isNew = false;
+		let isLocked = false;
+		const dbWord = await this.word.findOne({
+			where: { chineseWord: wordString },
+		});
 
-		for (const wordString of words) {
-			if (wordString.trim() === "" || /[\p{P}\p{Z}]/u.test(wordString)) {
-				if (wordString.trim() !== "") {
-					sentencePinyinParts.push(wordString.trim());
-				}
-				continue;
-			}
+		if (dbWord) {
+			const override = userId
+				? await this.wordService.getUserWord(dbWord.id, userId)
+				: null;
+			wordPinyin = override?.pinyin ?? dbWord.pinyin;
+			wordTranslation =
+				override?.englishTranslation ?? dbWord.englishTranslation;
+			isLocked = !!dbWord.is_locked && dbWord.creator_id !== userId;
+		} else {
+			isNew = true;
+			const entry = this.dictionary.lookup(wordString);
 
-			let wordPinyin = "";
-			let wordTranslation = "";
-			let isNew = false;
-			let isLocked = false;
-			const dbWord = await this.word.findOne({
-				where: { chineseWord: wordString },
-			});
-
-			if (dbWord) {
-				const override = userId
-					? await this.wordService.getUserWord(dbWord.id, userId)
-					: null;
-				wordPinyin = override?.pinyin ?? dbWord.pinyin;
-				wordTranslation =
-					override?.englishTranslation ?? dbWord.englishTranslation;
-				isLocked = !!dbWord.is_locked && dbWord.creator_id !== userId;
+			if (entry) {
+				wordPinyin = entry.pinyin;
+				wordTranslation = entry.englishTranslation;
 			} else {
-				isNew = true;
-				const entry = this.dictionary.lookup(wordString);
-
-				if (entry) {
-					wordPinyin = entry.pinyin;
-					wordTranslation = entry.englishTranslation;
-				} else {
-					wordPinyin = pinyin
-						.default(wordString, {
-							style: pinyin.STYLE_NORMAL,
-							segment: true,
-						})
-						.map((arr) => arr[0])
-						.join("");
+				wordPinyin = pinyin
+					.default(wordString, {
+						style: pinyin.STYLE_NORMAL,
+						segment: true,
+					})
+					.map((arr) => arr[0])
+					.join("");
+				if (allowTranslate) {
 					try {
 						if (userId) {
 							await this.checkAndIncrementQuota(userId);
@@ -432,16 +422,39 @@ class SentenceService {
 					}
 				}
 			}
+		}
 
-			sentencePinyinParts.push(wordPinyin);
+		return {
+			chineseWord: wordString,
+			pinyin: wordPinyin,
+			englishTranslation: wordTranslation,
+			isNew,
+			isLocked,
+		};
+	}
 
-			resultWords.push({
-				chineseWord: wordString,
-				pinyin: wordPinyin,
-				englishTranslation: wordTranslation,
-				isNew,
-				isLocked,
-			});
+	async analyzeSentence(chineseText, userId) {
+		const words = jieba.cut(chineseText);
+		const resultWords = [];
+		const sentencePinyinParts = [];
+
+		for (const wordString of words) {
+			if (wordString.trim() === "" || /[\p{P}\p{Z}]/u.test(wordString)) {
+				if (wordString.trim() !== "") {
+					sentencePinyinParts.push(wordString.trim());
+				}
+				continue;
+			}
+
+			const preview = await this._previewWord(wordString, userId);
+			sentencePinyinParts.push(preview.pinyin);
+			resultWords.push(preview);
+		}
+
+		for (const ch of extraHanzi(resultWords)) {
+			resultWords.push(
+				await this._previewWord(ch, userId, { allowTranslate: false }),
+			);
 		}
 
 		return {
@@ -577,7 +590,10 @@ class SentenceService {
 			}
 
 			if (!finalSentencePinyin) {
-				finalSentencePinyin = definedWords.map((w) => w.pinyin).join(" ");
+				finalSentencePinyin = sentencePinyinFromWords(
+					sentenceData.chineseText,
+					definedWords,
+				);
 			}
 		} else {
 			const words = jieba.cut(sentenceData.chineseText);
