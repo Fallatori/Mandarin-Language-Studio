@@ -13,6 +13,7 @@ function WordPage() {
     const [error, setError] = useState(null);
     const [selectedWord, setSelectedWord] = useState(null);
     const [isEditing, setIsEditing] = useState(false);
+    const [editForm, setEditForm] = useState({ chineseWord: '', pinyin: '', englishTranslation: '' });
     const [isAdding, setIsAdding] = useState(false);
     const [addForm, setAddForm] = useState({ chineseWord: '', pinyin: '', englishTranslation: '' });
     const [addError, setAddError] = useState('');
