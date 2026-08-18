@@ -113,6 +113,47 @@ body {
 	border-top: 1px solid var(--border-color);
 }
 
+.translation-usage {
+	padding: 0 1rem 1rem;
+}
+
+.translation-usage-label {
+	font-size: 0.7rem;
+	color: #64748b;
+	margin-bottom: 0.15rem;
+}
+
+.translation-usage-count {
+	font-size: 0.7rem;
+	font-weight: 600;
+	color: var(--text-heading);
+	margin-bottom: 0.35rem;
+}
+
+.translation-usage-track {
+	height: 0.35rem;
+	border-radius: 999px;
+	background-color: var(--accent-dark);
+	overflow: hidden;
+}
+
+.translation-usage-fill {
+	height: 100%;
+	border-radius: 999px;
+	background-color: var(--primary-color);
+	transition: width 0.3s;
+}
+
+.translation-usage-fill.near-limit {
+	background-color: #dc2626;
+}
+
+.translation-usage-breakdown {
+	margin-top: 0.35rem;
+	font-size: 0.65rem;
+	color: #64748b;
+}
+
 .user-profile {
 	display: flex;
 	align-items: center;

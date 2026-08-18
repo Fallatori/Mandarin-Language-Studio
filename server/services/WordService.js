@@ -1,5 +1,8 @@
 const { Op } = require("sequelize");
+const pinyinConverter = require("pinyin");
 const { httpError } = require("../utils/httpError");
+const TranslationService = require("./TranslationService");
+const TranslationQuotaService = require("./TranslationQuotaService");
 
 const STATUSES = ["new", "learning", "known"];
 
@@ -9,6 +12,8 @@ class WordService {
 		this.word = db.Word;
 		this.sentence = db.Sentence;
 		this.userWord = db.UserWord;
+		this.translationService = new TranslationService();
+		this.translationQuota = new TranslationQuotaService(db);
 	}
 
 	_merge(word, userWord, userId) {
@@ -196,6 +201,92 @@ class WordService {
 		return { removedFromList: true, deletedShared: true };
 	}
 
+	// Dictionary -> pinyin package -> Google Translate, in that order. Shared
+	// by addWord and the live lookup/suggest endpoints so all three fill
+	// fields the same way.
+	async _resolveWordFields(
+		trimmed,
+		userId,
+		{ needPinyin = true, needEnglish = true } = {},
+	) {
+		let py = "";
+		let en = "";
+
+		if (needPinyin || needEnglish) {
+			const DictionaryService = require("./DictionaryService");
+			const entry = new DictionaryService().lookup(trimmed);
+			if (needPinyin && entry?.pinyin) py = entry.pinyin;
+			if (needEnglish && entry?.englishTranslation) en = entry.englishTranslation;
+		}
+
+		if (needPinyin && !py) {
+			py = pinyinConverter
+				.default(trimmed, {
+					style: pinyinConverter.STYLE_NORMAL,
+					segment: true,
+				})
+				.map((arr) => arr[0])
+				.join("");
+		}
+
+		if (needEnglish && !en && this.translationService.isConfigured()) {
+			try {
+				await this.translationQuota.checkAndRecordUsage(userId, trimmed, "word");
+				en = await this.translationService.translate(trimmed, "en");
+			} catch (e) {
+				if (e.status === 429) throw e;
+				console.error("Word translation failed:", e.message);
+			}
+		}
+
+		return { pinyin: py, englishTranslation: en };
+	}
+
+	// Read-only preview for the add-word form: dictionary/shared-word lookup,
+	// falling through to the same translate fallback addWord uses. Never
+	// creates anything.
+	async lookupWord(chineseWord, userId) {
+		const trimmed = String(chineseWord || "").trim();
+		if (!trimmed || !/\p{Script=Han}/u.test(trimmed)) {
+			return { pinyin: "", englishTranslation: "", exists: false };
+		}
+
+		const existing = await this.word.findOne({ where: { chineseWord: trimmed } });
+		if (existing) {
+			const userWord = userId
+				? await this.getUserWord(existing.id, userId)
+				: null;
+			return {
+				pinyin: userWord?.pinyin ?? existing.pinyin,
+				englishTranslation:
+					userWord?.englishTranslation ?? existing.englishTranslation,
+				exists: true,
+			};
+		}
+
+		const resolved = await this._resolveWordFields(trimmed, userId);
+		return { ...resolved, exists: false };
+	}
+
+	// The reverse direction for the add-word form: English text -> a
+	// suggested Chinese word (and its pinyin). No dictionary reverse-index
+	// exists, so this always calls Google Translate.
+	async suggestChinese(englishText, userId) {
+		const trimmed = String(englishText || "").trim();
+		if (!trimmed) return { chineseWord: "", pinyin: "" };
+		if (!this.translationService.isConfigured()) {
+			throw httpError(500, "Translation is not configured.");
+		}
+
+		await this.translationQuota.checkAndRecordUsage(userId, trimmed, "word");
+		const chineseWord = await this.translationService.translate(trimmed, "zh");
+
+		const { pinyin } = await this._resolveWordFields(chineseWord, userId, {
+			needEnglish: false,
+		});
+		return { chineseWord, pinyin };
+	}
+
 	async addWord({ chineseWord, pinyin, englishTranslation }, userId) {
 		const trimmed = String(chineseWord || "").trim();
 		if (!trimmed) {
@@ -215,13 +306,12 @@ class WordService {
 		}
 
 		if (!py || !en) {
-			const DictionaryService = require("./DictionaryService");
-			const entry = new DictionaryService().lookup(trimmed);
-			if (!py && entry?.pinyin) py = entry.pinyin;
-			if (!en && entry?.englishTranslation) en = entry.englishTranslation;
-		}
-		if (!py) {
-			throw httpError(400, "Pinyin is required for that word");
+			const resolved = await this._resolveWordFields(trimmed, userId, {
+				needPinyin: !py,
+				needEnglish: !en,
+			});
+			if (!py) py = resolved.pinyin;
+			if (!en) en = resolved.englishTranslation;
 		}
 
 		const word = await this.word.create({

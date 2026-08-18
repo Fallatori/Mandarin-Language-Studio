@@ -4,6 +4,7 @@ const { httpError } = require("../utils/httpError");
 const WordService = require("./WordService");
 const DictionaryService = require("./DictionaryService");
 const SentenceService = require("./SentenceService");
+const TranslationQuotaService = require("./TranslationQuotaService");
 
 function limitFrom(value, fallback) {
 	if (value === undefined || value === "") return fallback;
@@ -28,6 +29,7 @@ class StoryService {
 		this.wordService = new WordService(db);
 		this.dictionary = new DictionaryService();
 		this.sentenceService = new SentenceService(db);
+		this.translationQuota = new TranslationQuotaService(db);
 	}
 
 	_clean(text) {
@@ -147,16 +149,20 @@ class StoryService {
 		await quota.increment("storyCount", { transaction });
 	}
 
-	async _fillMissingGlosses(described) {
+	async _fillMissingGlosses(described, userId) {
 		const missing = described.filter((d) => !d.englishTranslation);
 		if (missing.length === 0) return described;
 		if (!this.sentenceService.translationService.isConfigured()) return described;
 
 		try {
+			const words = missing.map((d) => d.chineseWord);
+			await this.translationQuota.checkAndRecordUsage(
+				userId,
+				words.join(""),
+				"story",
+			);
 			const translations =
-				await this.sentenceService.translationService.translateBatch(
-					missing.map((d) => d.chineseWord),
-				);
+				await this.sentenceService.translationService.translateBatch(words);
 			missing.forEach((d, i) => {
 				d.englishTranslation = translations[i] || "";
 			});
@@ -201,6 +207,7 @@ class StoryService {
 				status: statuses.get(chineseWord),
 				isNew: statuses.get(chineseWord) === null,
 			})),
+			userId,
 		);
 
 		const analysed = sentences.map((chineseText, index) => {
@@ -220,10 +227,14 @@ class StoryService {
 		const toTranslate = analysed.filter((s) => s.autoSave);
 		if (toTranslate.length > 0 && this.sentenceService.translationService.isConfigured()) {
 			try {
+				const texts = toTranslate.map((s) => s.chineseText);
+				await this.translationQuota.checkAndRecordUsage(
+					userId,
+					texts.join(""),
+					"story",
+				);
 				const translations =
-					await this.sentenceService.translationService.translateBatch(
-						toTranslate.map((s) => s.chineseText),
-					);
+					await this.sentenceService.translationService.translateBatch(texts);
 				toTranslate.forEach((s, i) => {
 					s.englishTranslation = translations[i] || "";
 				});
@@ -254,6 +265,7 @@ class StoryService {
 			words.map((w) =>
 				typeof w === "string" ? this._describeWord(w) : w,
 			),
+			userId,
 		);
 
 		for (const described of entries) {
@@ -308,6 +320,7 @@ class StoryService {
 								this._segment(chineseText).map((w) =>
 									this._describeWord(w),
 								),
+								userId,
 							);
 
 				const created = await this.sentenceService.addSentence({
@@ -454,6 +467,11 @@ class StoryService {
 		let englishTranslation = "";
 		if (this.sentenceService.translationService.isConfigured()) {
 			try {
+				await this.translationQuota.checkAndRecordUsage(
+					userId,
+					chineseText,
+					"story",
+				);
 				englishTranslation =
 					await this.sentenceService.translationService.translate(chineseText);
 			} catch (error) {

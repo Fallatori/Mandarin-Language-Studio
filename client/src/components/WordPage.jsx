@@ -5,6 +5,8 @@ import Modal from './Modal';
 import PinyinIme from './PinyinIme';
 
 const API_URL = 'http://localhost:5001/api/words';
+const AUTO_LOOKUP_DELAY_MS = 700;
+const HAN_SCRIPT = /\p{Script=Han}/u;
 
 function WordPage() {
     const navigate = useNavigate();
@@ -17,6 +19,61 @@ function WordPage() {
     const [isAdding, setIsAdding] = useState(false);
     const [addForm, setAddForm] = useState({ chineseWord: '', pinyin: '', englishTranslation: '' });
     const [addError, setAddError] = useState('');
+
+    // Chinese -> Pinyin + English, once typing settles and both are still blank.
+    useEffect(() => {
+        if (!isAdding) return;
+        const word = addForm.chineseWord.trim();
+        if (!word || !HAN_SCRIPT.test(word)) return;
+        if (addForm.pinyin.trim() && addForm.englishTranslation.trim()) return;
+
+        const timer = setTimeout(() => {
+            axios.post(`${API_URL}/lookup`, { chineseWord: word }, { withCredentials: true })
+                .then((response) => {
+                    setAddForm((prev) => {
+                        if (prev.chineseWord.trim() !== word) return prev;
+                        return {
+                            ...prev,
+                            pinyin: prev.pinyin.trim() ? prev.pinyin : (response.data.pinyin || prev.pinyin),
+                            englishTranslation: prev.englishTranslation.trim()
+                                ? prev.englishTranslation
+                                : (response.data.englishTranslation || prev.englishTranslation),
+                        };
+                    });
+                })
+                .catch((err) => console.error('Word lookup failed:', err));
+        }, AUTO_LOOKUP_DELAY_MS);
+
+        return () => clearTimeout(timer);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [addForm.chineseWord, isAdding]);
+
+    // English -> Chinese, the reverse direction, only while the Chinese box
+    // has no hanzi in it yet so it never overwrites what's already there.
+    useEffect(() => {
+        if (!isAdding) return;
+        const text = addForm.englishTranslation.trim();
+        if (!text || HAN_SCRIPT.test(addForm.chineseWord)) return;
+
+        const timer = setTimeout(() => {
+            axios.post(`${API_URL}/suggest-chinese`, { englishText: text }, { withCredentials: true })
+                .then((response) => {
+                    setAddForm((prev) => {
+                        if (HAN_SCRIPT.test(prev.chineseWord)) return prev;
+                        if (prev.englishTranslation.trim() !== text) return prev;
+                        return {
+                            ...prev,
+                            chineseWord: response.data.chineseWord || prev.chineseWord,
+                            pinyin: prev.pinyin.trim() ? prev.pinyin : (response.data.pinyin || prev.pinyin),
+                        };
+                    });
+                })
+                .catch((err) => console.error('Suggest Chinese failed:', err));
+        }, AUTO_LOOKUP_DELAY_MS);
+
+        return () => clearTimeout(timer);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [addForm.englishTranslation, isAdding]);
 
     useEffect(() => {
         const fetchWords = async () => {
@@ -201,6 +258,7 @@ function WordPage() {
                                 value={addForm.pinyin}
                                 onChange={(e) => setAddForm({ ...addForm, pinyin: e.target.value })}
                                 className="login-input"
+                                placeholder="Leave blank to auto-fill"
                             />
                         </div>
                         <div className="word-edit-group">
@@ -210,6 +268,7 @@ function WordPage() {
                                 value={addForm.englishTranslation}
                                 onChange={(e) => setAddForm({ ...addForm, englishTranslation: e.target.value })}
                                 className="login-input"
+                                placeholder="Leave blank to auto-translate"
                             />
                         </div>
                         <div className="word-edit-actions">

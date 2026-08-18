@@ -6,6 +6,7 @@ const { normalizePinyin } = require("../utils/pinyinSearch");
 const { extraHanzi, sentencePinyinFromWords } = require("../utils/previewWords");
 const WordService = require("./WordService");
 const TranslationService = require("./TranslationService");
+const TranslationQuotaService = require("./TranslationQuotaService");
 const DictionaryService = require("./DictionaryService");
 jieba.load();
 
@@ -23,6 +24,7 @@ class SentenceService {
 		this.Deck = db.Deck;
 		this.wordService = new WordService(db);
 		this.translationService = new TranslationService();
+		this.translationQuota = new TranslationQuotaService(db);
 		this.dictionary = new DictionaryService();
 	}
 
@@ -407,15 +409,17 @@ class SentenceService {
 					.join("");
 				if (allowTranslate) {
 					try {
-						if (userId) {
-							await this.checkAndIncrementQuota(userId);
-						}
+						await this.translationQuota.checkAndRecordUsage(
+							userId,
+							wordString,
+							"sentence",
+						);
 						wordTranslation = await this.translationService.translate(
 							wordString,
 							"en",
 						);
 					} catch (e) {
-						if (e.message.includes("Daily translation limit")) {
+						if (e.status === 429) {
 							throw e;
 						}
 						console.log("Translation failed for preview", e);
@@ -463,23 +467,6 @@ class SentenceService {
 			englishTranslation: "",
 			words: resultWords,
 		};
-	}
-
-	async checkAndIncrementQuota(userId, transaction) {
-		const MAX_QUOTA = 20;
-		const today = new Date().toISOString().split("T")[0];
-
-		const [quota] = await this.UserTranslationQuota.findOrCreate({
-			where: { user_id: userId, date: today },
-			defaults: { count: 0 },
-			transaction: transaction,
-		});
-
-		if (quota.count >= MAX_QUOTA) {
-			throw new Error(`Daily translation limit of ${MAX_QUOTA} reached.`);
-		}
-
-		await quota.increment("count", { transaction: transaction });
 	}
 
 	async addSentence(sentenceData) {
@@ -642,8 +629,10 @@ class SentenceService {
 						await word.save({ transaction });
 					} else if (!sentenceData.skipWordTranslation) {
 						try {
-							await this.checkAndIncrementQuota(
+							await this.translationQuota.checkAndRecordUsage(
 								sentenceData.creator_id,
+								wordString,
+								"sentence",
 								transaction,
 							);
 							word.englishTranslation = await this.translationService.translate(
@@ -747,7 +736,8 @@ class SentenceService {
 		}
 	}
 
-	async translateText(text, targetLang = "en") {
+	async translateText(text, targetLang = "en", userId) {
+		await this.translationQuota.checkAndRecordUsage(userId, text, "sentence");
 		try {
 			return await this.translationService.translate(text, targetLang);
 		} catch (error) {

@@ -7,8 +7,8 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const authenticateToken = require("../middleware/auth");
-
-const MAX_TRANSLATIONS_PER_DAY = 20;
+const TranslationQuotaService = require("../services/TranslationQuotaService");
+const translationQuota = new TranslationQuotaService(db);
 
 // Ensure the uploads directory exists
 const uploadDir = path.join(__dirname, "..", "uploads");
@@ -62,10 +62,10 @@ router.post("/analyze", async (req, res) => {
 		);
 		res.json(result);
 	} catch (error) {
-		console.error("Analysis endpoint error:", error);
-		if (error.message.includes("Daily translation limit")) {
+		if (error.status === 429) {
 			return res.status(429).json({ message: error.message });
 		}
+		console.error("Analysis endpoint error:", error);
 		res.status(500).json({ message: "Analysis failed" });
 	}
 });
@@ -119,28 +119,29 @@ router.post("/translate", async (req, res) => {
 			return res.status(400).json({ message: "Text is required" });
 		}
 
-		const userId = req.user.id;
-		const today = new Date().toISOString().split("T")[0]; // Format: YYYY-MM-DD
-
-		const [quota] = await db.UserTranslationQuota.findOrCreate({
-			where: { user_id: userId, date: today },
-			defaults: { count: 0 },
-		});
-
-		if (quota.count >= MAX_TRANSLATIONS_PER_DAY) {
-			return res.status(429).json({
-				message: `Daily translation limit of ${MAX_TRANSLATIONS_PER_DAY} reached.`,
-			});
-		}
-
-		const translation = await sentenceService.translateText(text, targetLang);
-
-		await quota.increment("count");
+		const translation = await sentenceService.translateText(
+			text,
+			targetLang,
+			req.user.id,
+		);
 
 		res.json({ translation });
 	} catch (error) {
+		if (error.status) {
+			return res.status(error.status).json({ message: error.message });
+		}
 		console.error("Translation endpoint error:", error);
 		res.status(500).json({ message: "Translation failed" });
+	}
+});
+
+router.get("/translation-usage", async (req, res) => {
+	try {
+		const usage = await translationQuota.getGlobalUsage();
+		res.json(usage);
+	} catch (error) {
+		console.error("Translation usage error:", error);
+		res.status(500).json({ message: "Failed to load translation usage." });
 	}
 });
 
@@ -231,12 +232,11 @@ router.post("/", upload.single("audioFile"), async (req, res) => {
 
 		res.status(201).json(newSentence);
 	} catch (error) {
-		console.error("Error adding sentence:", error);
-
-		if (error.message.includes("Daily translation limit")) {
+		if (error.status === 429) {
 			return res.status(429).json({ message: error.message });
 		}
 
+		console.error("Error adding sentence:", error);
 		res.status(500).json({ message: "Failed to add sentence." });
 	}
 });

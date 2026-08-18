@@ -24,6 +24,34 @@ router.post("/", async (req, res) => {
 	}
 });
 
+router.post("/lookup", async (req, res) => {
+	try {
+		const { chineseWord } = req.body;
+		const result = await wordService.lookupWord(chineseWord, req.user.id);
+		res.json(result);
+	} catch (err) {
+		if (err.status) {
+			return res.status(err.status).json({ error: err.message });
+		}
+		console.error("Error looking up word:", err);
+		res.status(500).json({ error: "Lookup failed" });
+	}
+});
+
+router.post("/suggest-chinese", async (req, res) => {
+	try {
+		const { englishText } = req.body;
+		const result = await wordService.suggestChinese(englishText, req.user.id);
+		res.json(result);
+	} catch (err) {
+		if (err.status) {
+			return res.status(err.status).json({ error: err.message });
+		}
+		console.error("Error suggesting Chinese:", err);
+		res.status(500).json({ error: "Suggestion failed" });
+	}
+});
+
 router.delete("/all", async (req, res) => {
 	try {
 		await wordService.deleteAllWordsByUser(req.user.id);

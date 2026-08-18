@@ -1,8 +1,10 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import PinyinIme from './PinyinIme';
+
+const AUTO_TRANSLATE_DELAY_MS = 800;
 
 function SentenceForm({ onAddSentence, isLoading }) {
     const navigate = useNavigate();
@@ -21,19 +23,24 @@ function SentenceForm({ onAddSentence, isLoading }) {
             setError("Convert pinyin to hanzi before translating to English.");
             return;
         }
-        
+
         setIsTranslating(true);
         try {
             const response = await axios.post(
                 'http://localhost:5001/api/sentences/translate',
-                { text: sourceText, targetLang }, 
+                { text: sourceText, targetLang },
                 { withCredentials: true }
             );
             setTargetField(response.data.translation);
+            setError('');
         } catch (err) {
             console.error("Translation failed:", err);
             if (err.response && err.response.status === 401) {
                 navigate('/login');
+                return;
+            }
+            if (err.response && err.response.status === 429) {
+                setError(err.response.data?.message || "Translation limit reached. Please enter manually.");
                 return;
             }
             setError("Could not auto-translate. Please enter manually.");
@@ -41,6 +48,20 @@ function SentenceForm({ onAddSentence, isLoading }) {
             setIsTranslating(false);
         }
     };
+
+    // Auto-translate Chinese -> English once the user stops typing, so the
+    // "Auto Translate" button only has to handle a manual re-run.
+    useEffect(() => {
+        if (!chineseText.trim() || englishTranslation.trim()) return;
+        if (/[a-zA-Z]/.test(chineseText)) return;
+
+        const timer = setTimeout(() => {
+            handleTranslate(chineseText, 'en', setEnglishTranslation);
+        }, AUTO_TRANSLATE_DELAY_MS);
+
+        return () => clearTimeout(timer);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [chineseText]);
 
     const handleFileChange = (event) => {
         const file = event.target.files[0];
