@@ -39,6 +39,16 @@ class WordService {
 			.map((row) => this._merge(row.Word, row, userId));
 	}
 
+	async getUserWordTexts(userId) {
+		if (!userId) return [];
+		const rows = await this.userWord.findAll({
+			where: { user_id: userId },
+			attributes: ["word_id"],
+			include: [{ model: this.word, attributes: ["chineseWord"] }],
+		});
+		return rows.filter((row) => row.Word).map((row) => row.Word.chineseWord);
+	}
+
 	async ensureUserWord(wordId, userId, transaction, status) {
 		if (!userId) return null;
 

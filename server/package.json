@@ -8,6 +8,7 @@
 		"backfill:userwords": "node scripts/backfillUserWords.js",
 		"check:lengths": "node scripts/checkTextLengths.js",
 		"build:dictionary": "node scripts/buildDictionary.js",
+		"build:ime": "node scripts/buildImeDict.js",
 		"backfill:pinyinsearch": "node scripts/backfillPinyinSearch.js"
 	},
 	"keywords": [],

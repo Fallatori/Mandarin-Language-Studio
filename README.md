@@ -39,7 +39,23 @@ npm run build:dictionary
 - Pass a local path to skip the download:
   `npm run build:dictionary -- ./cedict_ts.u8`
 
-6. **Optional: enable sentence translation**
+6. **Build the IME index**
+
+```
+npm run build:ime
+```
+
+- Must run *after* `build:dictionary` — it reads `server/data/cedict.json` for
+  readings and exits with a message if it is missing.
+- Writes `server/data/ime.json` (~154,000 rows), also gitignored and
+  regenerable. The compose IME returns no candidates until it exists.
+- Combines three sources: the jieba lexicon vendored with `nodejieba` (MIT) for
+  word frequencies, CC-CEDICT for readings, and SUBTLEX-CH for spoken-register
+  frequencies, which is downloaded unless a path is given.
+- Pass `--no-speech` to skip the SUBTLEX download, or a local path to reuse one:
+  `npm run build:ime -- ./SUBTLEX-CH-WF`
+
+7. **Optional: enable sentence translation**
 
 - Word glosses come from the offline dictionary and need no configuration.
   Whole-sentence English uses Google Cloud Translation, which is optional —
@@ -52,7 +68,7 @@ GOOGLE_TRANSLATE_API_KEY=your-api-key
 GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/key.json
 ```
 
-7. **Start the backend server**
+8. **Start the backend server**
 
 ```
 npm start
@@ -60,14 +76,14 @@ npm start
 
 - The backend runs on [http://localhost:5001](http://localhost:5001)
 
-8. **Install frontend dependencies**
+9. **Install frontend dependencies**
 
 ```
 cd ../client
 npm install
 ```
 
-9. **Start the frontend app**
+10. **Start the frontend app**
 
 ```
 npm run dev
@@ -75,7 +91,7 @@ npm run dev
 
 - The frontend runs on [http://localhost:5173](http://localhost:5173)
 
-10. **Login/Register**
+11. **Login/Register**
 
 - Open [http://localhost:5173](http://localhost:5173) in your browser.
 - Register a new user or login with your credentials.
@@ -189,6 +205,15 @@ SELECT status, COUNT(*) FROM UserWords GROUP BY status;
 
 No data migration is needed: `learning` stays valid. Remember
 `npm run build:dictionary` (setup step 5) before using stories.
+
+## Data sources
+
+- **CC-CEDICT** — Chinese-English dictionary, CC BY-SA 4.0.
+- **jieba** — word frequencies, from the lexicon vendored with `nodejieba` (MIT).
+- **SUBTLEX-CH** — spoken-register word frequencies from film and television
+  subtitles, CC BY. Cai Q, Brysbaert M (2010) *SUBTLEX-CH: Chinese Word and
+  Character Frequencies Based on Film Subtitles*, PLoS ONE 5(6): e10729.
+  <https://doi.org/10.1371/journal.pone.0010729>
 
 ## TODO
 

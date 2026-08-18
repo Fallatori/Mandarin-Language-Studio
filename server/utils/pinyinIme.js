@@ -1,159 +1,263 @@
+const fs = require("fs");
+const path = require("path");
 const { normalizePinyin } = require("./pinyinSearch");
+const { httpError } = require("./httpError");
 
-const CHAR_FREQ =
-	"的一是不了在人有我他这中来上大为和国地到以说时要就出会可也你对生能而子那得于着下自之年过发后作里用道行所然家种事成方多经么去法学如都同现当没动面起看定天分还进好小部其些主样理心她本前开但因只从想实日军者意无力它与长把机十民第公此已工使情明性知全三又关点正业外将两高间由问很最重并物手应战向头文体政美相见被利什二等产或新己制身果加西斯月话合回特代内信表化老给世位次度门任常先海通教原东声提立及比员解水名真论处走义各入几口认条做气级太女白象爱叫再象什么";
+const DATA_PATH = path.join(__dirname, "..", "data", "ime.json");
 
-const WORD_FREQ = {
-	的: 0,
-	我: 1,
-	我们: 2,
-	你: 3,
-	是: 4,
-	不: 5,
-	了: 6,
-	在: 7,
-	人: 8,
-	有: 9,
-	他: 10,
-	这: 11,
-	爱: 18,
-	喜欢: 20,
-	你们: 22,
-	什么: 24,
-	可以: 26,
-	没有: 28,
-	自己: 30,
-	知道: 32,
-	一个: 34,
-};
+const LIMIT = 9;
+const MAX_BUFFER = 24;
+const PHRASE_POOL = 4000;
+const PARTIAL_POOL = 4000;
+const TAIL_PENALTY = 50000;
+const ABBREV_COST = 120;
+const PIECE_COST = 140;
+const BOOST = 40;
 
-function freqOf(text) {
-	if (Object.hasOwn(WORD_FREQ, text)) return WORD_FREQ[text];
-	let worst = 0;
-	for (const ch of text) {
-		const index = CHAR_FREQ.indexOf(ch);
-		worst = Math.max(worst, index === -1 ? 9000 : index);
-	}
-	return worst || 9000;
+function makeEntry(text, syllables, display, freq) {
+	return {
+		text,
+		pinyin: display,
+		syllables,
+		py: syllables.join(""),
+		initials: syllables.map((s) => s[0]).join(""),
+		freq,
+		weight: Math.log(freq + 1),
+	};
 }
 
 function entriesFromDict(dict) {
 	const entries = [];
 	for (const [text, value] of Object.entries(dict || {})) {
 		if (!text) continue;
-		const pinyin = Array.isArray(value) ? value[0] : "";
-		const py = normalizePinyin(pinyin);
-		if (!py) continue;
-		entries.push({
-			text,
-			pinyin,
-			py,
-			english: Array.isArray(value) ? value[1] || "" : "",
-			freq: freqOf(text),
-		});
+		const display = Array.isArray(value) ? value[0] : "";
+		const syllables = String(display)
+			.split(/\s+/)
+			.map(normalizePinyin)
+			.filter(Boolean);
+		if (!syllables.length) continue;
+		entries.push(makeEntry(text, syllables, display, 1));
+	}
+	return entries;
+}
+
+function entriesFromRows(rows, toned) {
+	const entries = [];
+	for (const [text, pinyin, freq] of rows || []) {
+		const syllables = String(pinyin).split(" ").filter(Boolean);
+		if (!text || !syllables.length) continue;
+		const display = (toned && toned(text)) || syllables.join(" ");
+		entries.push(makeEntry(text, syllables, display, freq || 1));
 	}
 	return entries;
 }
 
 function buildIndex(entries) {
 	const buckets = new Map();
-	const byFirst = new Map();
 	for (const entry of entries) {
-		const two = entry.py.slice(0, 2);
-		if (!buckets.has(two)) buckets.set(two, []);
-		buckets.get(two).push(entry);
 		const first = entry.py[0];
-		if (!byFirst.has(first)) byFirst.set(first, []);
-		byFirst.get(first).push(entry);
+		if (!first) continue;
+		if (!buckets.has(first)) buckets.set(first, []);
+		buckets.get(first).push(entry);
 	}
-	return { buckets, byFirst };
+	for (const bucket of buckets.values()) {
+		bucket.sort((a, b) => b.freq - a.freq);
+	}
+	return buckets;
 }
 
-function poolFor(index, buffer) {
-	if (!buffer) return [];
-	if (buffer.length === 1) return index.byFirst.get(buffer) || [];
-	return index.buckets.get(buffer.slice(0, 2)) || [];
+function isSubsequence(needle, haystack) {
+	let i = 0;
+	for (let j = 0; j < haystack.length && i < needle.length; j++) {
+		if (needle[i] === haystack[j]) i += 1;
+	}
+	return i === needle.length;
 }
 
-function wordScore(entry) {
-	return entry.py.length * 200 - entry.freq;
+function better(a, b) {
+	if (!a) return true;
+	if (b.fullCount !== a.fullCount) return b.fullCount > a.fullCount;
+	if (b.complete !== a.complete) return b.complete;
+	return b.syllablesUsed < a.syllablesUsed;
 }
 
-function convertBuffer(index, buffer) {
+function matchSpans(buffer, start, entry) {
+	const { syllables } = entry;
+	const n = buffer.length;
+	const spans = new Map();
+	let level = new Map([[start, 0]]);
+
+	for (let i = 0; i < syllables.length; i++) {
+		const s = syllables[i];
+		const next = new Map();
+
+		for (const [p, fullCount] of level) {
+			if (buffer.startsWith(s, p)) {
+				const q = p + s.length;
+				if ((next.get(q) ?? -1) < fullCount + 1) next.set(q, fullCount + 1);
+			}
+			if (p < n && buffer[p] === s[0]) {
+				const q = p + 1;
+				if ((next.get(q) ?? -1) < fullCount) next.set(q, fullCount);
+			}
+			if (p < n && s.startsWith(buffer.slice(p))) {
+				if ((next.get(n) ?? -1) < fullCount) next.set(n, fullCount);
+			}
+		}
+
+		if (!next.size) break;
+
+		const complete = i + 1 === syllables.length;
+		for (const [p, fullCount] of next) {
+			const span = { fullCount, syllablesUsed: i + 1, complete, end: p };
+			if (better(spans.get(p), span)) spans.set(p, span);
+		}
+		level = next;
+	}
+
+	return spans;
+}
+
+function boosted(boost, text) {
+	return boost && boost.has(text) ? BOOST : 0;
+}
+
+function matchQuality(entry, span, covers, boost) {
+	return (
+		(covers ? 600 : 0)
+		+ boosted(boost, entry.text)
+		+ (span.complete ? 300 : 0)
+		- ABBREV_COST * (span.syllablesUsed - span.fullCount)
+		+ 20 * span.end
+		+ 8 * entry.weight
+	);
+}
+
+function pieceScore(entry, span, boost) {
+	return (
+		boosted(boost, entry.text)
+		+ 40 * span.syllablesUsed
+		+ 8 * entry.weight
+		- PIECE_COST
+		- ABBREV_COST * (span.syllablesUsed - span.fullCount)
+	);
+}
+
+function convertBuffer(index, buffer, boost) {
 	const n = buffer.length;
 	const dp = new Array(n + 1);
 	dp[0] = { score: 0, pieces: [] };
 
 	for (let i = 0; i < n; i++) {
 		if (!dp[i]) continue;
-		const rest = buffer.slice(i);
-		for (const entry of poolFor(index, rest)) {
-			if (!rest.startsWith(entry.py)) continue;
-			const j = i + entry.py.length;
-			const score = dp[i].score + wordScore(entry);
-			if (!dp[j] || score > dp[j].score) {
-				dp[j] = { score, pieces: [...dp[i].pieces, entry] };
+		const bucket = index.get(buffer[i]) || [];
+		const pool = Math.min(bucket.length, PHRASE_POOL);
+
+		for (let k = 0; k < pool; k++) {
+			const entry = bucket[k];
+			for (const span of matchSpans(buffer, i, entry).values()) {
+				if (span.end <= i || !span.complete) continue;
+				const score = dp[i].score + pieceScore(entry, span, boost);
+				if (!dp[span.end] || score > dp[span.end].score) {
+					dp[span.end] = {
+						score,
+						pieces: [...dp[i].pieces, { entry, span }],
+					};
+				}
 			}
 		}
 	}
 
-	let best = { score: -Infinity, pieces: [], rest: buffer };
-	for (let i = 0; i <= n; i++) {
+	let best = { score: -Infinity, pieces: [], end: 0 };
+	for (let i = 1; i <= n; i++) {
 		if (!dp[i]) continue;
-		const score = dp[i].score - (n - i) * 50000;
+		const score = dp[i].score - (n - i) * TAIL_PENALTY;
 		if (score > best.score) {
-			best = { score, pieces: dp[i].pieces, rest: buffer.slice(i) };
+			best = { score, pieces: dp[i].pieces, end: i };
 		}
 	}
-	return { pieces: best.pieces, rest: best.rest };
+	return best;
 }
 
-function suggest(index, raw, limit = 9) {
-	const buffer = normalizePinyin(raw);
+function phraseCandidate(index, buffer, boost) {
+	const phrase = convertBuffer(index, buffer, boost);
+	if (phrase.pieces.length < 2) return null;
+
+	let fullCount = 0;
+	let syllablesUsed = 0;
+	let weight = 0;
+	let bonus = 0;
+	for (const { entry, span } of phrase.pieces) {
+		fullCount += span.fullCount;
+		syllablesUsed += span.syllablesUsed;
+		weight += entry.weight;
+		bonus += boosted(boost, entry.text);
+	}
+
+	const span = {
+		fullCount,
+		syllablesUsed,
+		complete: true,
+		end: phrase.end,
+	};
+	const entry = { weight: weight / phrase.pieces.length };
+
+	return {
+		text: phrase.pieces.map((piece) => piece.entry.text).join(""),
+		pinyin: phrase.pieces.map((piece) => piece.entry.pinyin).join(" "),
+		py: buffer.slice(0, phrase.end),
+		consumed: phrase.end,
+		isPhrase: true,
+		score:
+			matchQuality(entry, span, phrase.end === buffer.length)
+			+ bonus
+			- 80 * (phrase.pieces.length - 1),
+	};
+}
+
+function suggest(index, raw, options = {}) {
+	const { limit = LIMIT, boost = null } = options;
+	const buffer = normalizePinyin(raw).slice(0, MAX_BUFFER);
 	if (!buffer) return [];
 
-	const { pieces, rest } = convertBuffer(index, buffer);
 	const scored = [];
-	for (const entry of poolFor(index, buffer)) {
-		const py = entry.py;
-		let rank = 0;
-		if (py === buffer) rank = 300 + py.length;
-		else if (buffer.startsWith(py)) rank = 200 + py.length;
-		else if (py.startsWith(buffer)) rank = 100 + Math.min(py.length, 12);
-		else continue;
-		scored.push({ ...entry, rank });
-	}
-	scored.sort(
-		(a, b) =>
-			b.rank - a.rank
-			|| a.freq - b.freq
-			|| a.text.length - b.text.length
-			|| a.text.localeCompare(b.text, "zh"),
-	);
+	const phrase = phraseCandidate(index, buffer, boost);
+	if (phrase) scored.push(phrase);
 
-	const list = [];
-	const seen = new Set();
-	if (pieces.length >= 2 || (pieces.length === 1 && rest)) {
-		const consumed = buffer.slice(0, buffer.length - rest.length);
-		const text = pieces.map((piece) => piece.text).join("");
-		list.push({
-			text,
-			pinyin: pieces.map((piece) => piece.pinyin).join(" "),
-			py: consumed,
-			isPhrase: true,
-		});
-		seen.add(text);
-	}
+	const bucket = index.get(buffer[0]) || [];
+	for (let k = 0; k < bucket.length; k++) {
+		const entry = bucket[k];
+		const covers = buffer.length <= entry.py.length
+			&& isSubsequence(buffer, entry.py);
+		if (!covers && k >= PARTIAL_POOL) continue;
 
-	for (const entry of scored) {
-		if (seen.has(entry.text)) continue;
-		seen.add(entry.text);
-		list.push({
+		let best = null;
+		for (const span of matchSpans(buffer, 0, entry).values()) {
+			if (!best || span.end > best.end || (span.end === best.end && better(best, span))) {
+				best = span;
+			}
+		}
+		if (!best) continue;
+
+		scored.push({
 			text: entry.text,
 			pinyin: entry.pinyin,
 			py: entry.py,
+			consumed: best.end,
 			isPhrase: false,
+			score: matchQuality(entry, best, best.end === buffer.length, boost),
 		});
+	}
+
+	scored.sort((a, b) => b.score - a.score || a.text.localeCompare(b.text, "zh"));
+
+	const list = [];
+	const seen = new Set();
+	for (const item of scored) {
+		if (seen.has(item.text)) continue;
+		seen.add(item.text);
+		const { score, ...candidate } = item;
+		list.push(candidate);
 		if (list.length >= limit) break;
 	}
 	return list;
@@ -163,18 +267,34 @@ let cachedIndex = null;
 
 function getIndex() {
 	if (cachedIndex) return cachedIndex;
+
+	if (!fs.existsSync(DATA_PATH)) {
+		throw httpError(500, "IME data is missing. Run: npm run build:ime");
+	}
+
+	const rows = JSON.parse(fs.readFileSync(DATA_PATH, "utf8"));
 	const DictionaryService = require("../services/DictionaryService");
-	cachedIndex = buildIndex(entriesFromDict(DictionaryService.loadDict()));
+	let dict = {};
+	try {
+		dict = DictionaryService.loadDict();
+	} catch {
+		dict = {};
+	}
+	const toned = (text) => (dict[text] ? dict[text][0] : "");
+
+	cachedIndex = buildIndex(entriesFromRows(rows, toned));
 	return cachedIndex;
 }
 
-function suggestQuery(raw) {
-	return suggest(getIndex(), raw);
+function suggestQuery(raw, boost) {
+	return suggest(getIndex(), raw, { boost });
 }
 
 module.exports = {
 	entriesFromDict,
+	entriesFromRows,
 	buildIndex,
+	matchSpans,
 	suggest,
 	suggestQuery,
 };

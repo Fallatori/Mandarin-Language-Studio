@@ -1,7 +1,17 @@
 import React, { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { consumePrefix } from '../utils/learnIme';
+import { normalizePinyin } from '../utils/pinyinSearch';
+
+function consumeCount(raw, count) {
+    let taken = 0;
+    let i = 0;
+    while (i < raw.length && taken < count) {
+        if (normalizePinyin(raw[i])) taken += 1;
+        i += 1;
+    }
+    return raw.slice(i);
+}
 
 function trailingLatin(value) {
     const match = String(value || '').match(/^(.*?)([a-zA-ZüÜvV:0-9']*)$/u);
@@ -56,7 +66,7 @@ function PinyinIme({
 
     const commit = (item) => {
         const parts = trailingLatin(value);
-        const leftover = consumePrefix(parts.buffer, item.py);
+        const leftover = consumeCount(parts.buffer, item.consumed);
         const next = `${parts.committed}${item.text}${leftover}`;
         onChange(next);
         if (onCommit) onCommit(item);
