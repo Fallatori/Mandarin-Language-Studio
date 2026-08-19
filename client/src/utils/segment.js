@@ -35,6 +35,89 @@ export function segmentGroups(text, count) {
     return groups;
 }
 
+const isHan = (ch) => /\p{Script=Han}/u.test(ch);
+const isSilent = (ch) => /[\p{P}\p{Z}\p{S}]/u.test(ch);
+
+function syllables(pinyin) {
+    return String(pinyin || '')
+        .trim()
+        .split(/\s+/)
+        .filter((token) => /\p{L}|\p{N}/u.test(token))
+        .map((token) => token.replace(/^[\p{P}\p{S}]+|[\p{P}\p{S}]+$/gu, ''));
+}
+
+function spanPinyin(chars, start, end, sounds, from) {
+    const parts = [];
+    let index = from;
+    for (let i = start; i < end; i += 1) {
+        if (isHan(chars[i]) && index < sounds.length) parts.push(sounds[index++]);
+    }
+    return { pinyin: parts.join(' '), next: index };
+}
+
+function looseUnits(text, chars, sounds) {
+    let first = -1;
+    let last = -1;
+    chars.forEach((ch, i) => {
+        if (isHan(ch) || isSilent(ch)) return;
+        if (first < 0) first = i;
+        last = i;
+    });
+    if (first < 0) return null;
+
+    const groups = segmentGroups(text, chars.length);
+    const startGroup = groups.find((g) => first >= g.start && first < g.end);
+    const endGroup = groups.find((g) => last >= g.start && last < g.end);
+    if (!startGroup || !endGroup) return null;
+
+    const midStart = startGroup.start;
+    const midEnd = endGroup.end;
+    const before = chars.slice(0, midStart).filter(isHan).length;
+    const after = chars.slice(midEnd).filter(isHan).length;
+    if (before + after > sounds.length) return null;
+
+    const units = [];
+    let index = 0;
+    for (const group of groups) {
+        if (group.end <= midStart) {
+            const span = spanPinyin(chars, group.start, group.end, sounds, index);
+            index = span.next;
+            units.push({ text: chars.slice(group.start, group.end).join(''), pinyin: span.pinyin });
+        }
+    }
+    units.push({
+        text: chars.slice(midStart, midEnd).join(''),
+        pinyin: sounds.slice(before, sounds.length - after).join(' '),
+    });
+    index = sounds.length - after;
+    for (const group of groups) {
+        if (group.start >= midEnd) {
+            const span = spanPinyin(chars, group.start, group.end, sounds, index);
+            index = span.next;
+            units.push({ text: chars.slice(group.start, group.end).join(''), pinyin: span.pinyin });
+        }
+    }
+    return units;
+}
+
+export function rubyUnits(text, pinyin) {
+    const chars = Array.from(text || '');
+    if (!chars.length || !pinyin) return null;
+
+    const pieces = charTilesFromText(text, pinyin);
+    if (pieces.some((piece) => piece.pinyin)) {
+        return segmentGroups(text, pieces.length).map((group) => {
+            const wordPieces = pieces.slice(group.start, group.end);
+            return {
+                text: wordPieces.map((piece) => piece.text).join(''),
+                pinyin: wordPieces.map((piece) => piece.pinyin).filter(Boolean).join(' '),
+            };
+        });
+    }
+
+    return looseUnits(text, chars, syllables(pinyin));
+}
+
 export function canRuby(text, pinyin) {
-    return !!pinyin && charTilesFromText(text, pinyin).some((piece) => piece.pinyin);
+    return !!rubyUnits(text, pinyin);
 }

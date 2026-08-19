@@ -1,33 +1,20 @@
 import React from 'react';
-import { segmentChinese, segmentGroups } from '../utils/segment';
-import { charTilesFromText } from '../utils/learnIme';
-
-function rubyParts(text, pinyin) {
-    const pieces = charTilesFromText(text, pinyin);
-    if (!pieces.some((piece) => piece.pinyin)) return null;
-    return segmentGroups(text, pieces.length).map((group) => {
-        const wordPieces = pieces.slice(group.start, group.end);
-        return {
-            text: wordPieces.map((piece) => piece.text).join(''),
-            pinyin: wordPieces.map((piece) => piece.pinyin).filter(Boolean).join(' '),
-        };
-    });
-}
+import { segmentChinese, rubyUnits } from '../utils/segment';
 
 function HanziText(props) {
     const { text, pinyin, as: Tag = 'span', className, ...rest } = props;
-    const parts = pinyin ? rubyParts(text, pinyin) : null;
+    const units = pinyin ? rubyUnits(text, pinyin) : null;
 
-    if (parts) {
+    if (units) {
         return (
             <Tag className={`${className || ''} has-ruby`.trim()} {...rest}>
-                {parts.map((part, index) => (
-                    <React.Fragment key={`${part.text}-${index}`}>
+                {units.map((unit, index) => (
+                    <React.Fragment key={`${unit.text}-${index}`}>
                         {index > 0 && <wbr />}
                         <span className="cjk-word">
                             <ruby>
-                                {part.text}
-                                <rt>{part.pinyin || ' '}</rt>
+                                {unit.text}
+                                <rt>{unit.pinyin || ' '}</rt>
                             </ruby>
                         </span>
                     </React.Fragment>
