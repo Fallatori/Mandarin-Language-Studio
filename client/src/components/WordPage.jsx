@@ -223,8 +223,9 @@ function WordPage() {
                             className="card"
                         >
                             <div className="card-content">
-                            <h3 className="card-hanzi hanzi-font">{word.chineseWord}</h3>
-                            <p className="card-pinyin">{word.pinyin}</p>
+                            <h3 className="card-hanzi hanzi-font has-ruby">
+                                <ruby>{word.chineseWord}<rt>{word.pinyin}</rt></ruby>
+                            </h3>
                             <p className="card-english">{word.englishTranslation}</p>
 
                             </div>

@@ -511,6 +511,38 @@ body {
 	margin: 0;
 }
 
+.card-hanzi.has-ruby {
+	line-height: 2.4;
+}
+
+.card-hanzi ruby {
+	ruby-align: center;
+	ruby-position: over;
+	-webkit-ruby-position: before;
+}
+
+.card-hanzi rt {
+	font-family: "Public Sans", sans-serif;
+	font-size: 0.95rem;
+	font-weight: 500;
+	color: var(--primary-color);
+	letter-spacing: 0.02em;
+	line-height: 1.2;
+	padding-bottom: 0.25rem;
+}
+
+.card-hanzi.is-medium rt {
+	font-size: 0.875rem;
+}
+
+.card-hanzi.is-long rt {
+	font-size: 0.8rem;
+}
+
+.word-grid .card-hanzi rt {
+	padding-bottom: 0.6rem;
+}
+
 .card-english {
 	font-size: 0.875rem;
 	font-style: italic;

@@ -1,5 +1,6 @@
 import React from 'react';
 import HanziText from './HanziText';
+import { canRuby } from '../utils/segment';
 
 function SentenceItem({ sentence, onDeleteSentence, onToggleDifficult, onEditSentence, audioBaseUrl }) {
     
@@ -10,6 +11,8 @@ function SentenceItem({ sentence, onDeleteSentence, onToggleDifficult, onEditSen
     
     const hanziLength = Array.from(sentence.chineseText || '').length;
     const lengthClass = hanziLength > 24 ? ' is-long' : hanziLength > 14 ? ' is-medium' : '';
+
+    const hasRuby = canRuby(sentence.chineseText, sentence.pinyin);
 
     const audioUrl = sentence.audioFilename ? `${audioBaseUrl}${sentence.audioFilename}` : null;
 
@@ -87,8 +90,8 @@ function SentenceItem({ sentence, onDeleteSentence, onToggleDifficult, onEditSen
             </div>
 
             <div className="card-content">
-                <HanziText as="h3" className={`card-hanzi hanzi-font${lengthClass}`} text={sentence.chineseText} />
-                <p className="card-pinyin">{sentence.pinyin}</p>
+                <HanziText as="h3" className={`card-hanzi hanzi-font${lengthClass}`} text={sentence.chineseText} pinyin={sentence.pinyin} />
+                {!hasRuby && <p className="card-pinyin">{sentence.pinyin}</p>}
                 <p className="card-english">{sentence.englishTranslation}</p>
             </div>
         </div>

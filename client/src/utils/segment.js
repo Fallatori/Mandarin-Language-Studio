@@ -1,3 +1,5 @@
+import { charTilesFromText } from './learnIme';
+
 const CACHE = new Map();
 const CACHE_LIMIT = 500;
 
@@ -31,4 +33,8 @@ export function segmentGroups(text, count) {
     }
     if (index < count) groups.push({ start: index, end: count });
     return groups;
+}
+
+export function canRuby(text, pinyin) {
+    return !!pinyin && charTilesFromText(text, pinyin).some((piece) => piece.pinyin);
 }
