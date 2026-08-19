@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import Modal from './Modal';
+import HanziText from './HanziText';
 
 function DeckPage() {
     const navigate = useNavigate();
@@ -240,7 +241,7 @@ function DeckPage() {
                             className="checkbox-custom"
                         />
                          <div className="deck-item-content">
-                            <span className="deck-item-hanzi">{s.chineseText}</span>
+                            <HanziText className="deck-item-hanzi" text={s.chineseText} />
                             <span className="deck-item-translation">{s.englishTranslation}</span>
                         </div>
                     </label>
@@ -320,7 +321,7 @@ function DeckPage() {
                     {selectedDeck.sentences && selectedDeck.sentences.map(s => (
                         <div key={s.id} className="deck-read-item">
                              <div className="deck-item-content">
-                                <span className="deck-item-hanzi">{s.chineseText}</span>
+                                <HanziText className="deck-item-hanzi" text={s.chineseText} />
                                 <span className="deck-item-translation">{s.englishTranslation}</span>
                             </div>
                         </div>

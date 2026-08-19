@@ -10,6 +10,7 @@ import {
     listImeCandidates,
     flushBuffer,
 } from '../utils/learnIme';
+import { segmentGroups } from '../utils/segment';
 
 function shuffle(items) {
     const next = items.slice();
@@ -56,17 +57,23 @@ function asPieces(tiles) {
 
 function RubySentence({ text, pinyin, showPinyin }) {
     const pieces = charTilesFromText(text, pinyin);
+    const groups = segmentGroups(text, pieces.length);
     return (
         <span className="learn-ruby-line">
-            {pieces.map((piece, index) => (
-                <ruby
-                    key={`${piece.text}-${index}`}
-                    className={`learn-ruby${showPinyin ? ' with-pinyin' : ''}`}
-                >
-                    <span className="hanzi-font">{piece.text}</span>
-                    <rt>{piece.pinyin || '\u00a0'}</rt>
-                </ruby>
-            ))}
+            {groups.map((group, index) => {
+                const wordPieces = pieces.slice(group.start, group.end);
+                const wordText = wordPieces.map((piece) => piece.text).join('');
+                const wordPinyin = wordPieces.map((piece) => piece.pinyin).filter(Boolean).join(' ');
+                return (
+                    <React.Fragment key={`group-${group.start}`}>
+                        {index > 0 && <wbr />}
+                        <ruby className={`learn-ruby${showPinyin ? ' with-pinyin' : ''}`}>
+                            <span className="hanzi-font">{wordText}</span>
+                            <rt>{wordPinyin || '\u00a0'}</rt>
+                        </ruby>
+                    </React.Fragment>
+                );
+            })}
         </span>
     );
 }

@@ -18,6 +18,7 @@ const DEFAULT_MAX_SENTENCE_LENGTH = 30;
 
 const SENTENCE_ENDINGS = /(?<=[。！？；…!?])/u;
 const CLAUSE_ENDINGS = /(?<=[，、；：,])/u;
+const TRAILING_CLAUSE_PUNCT = /[，、；：,]+$/u;
 
 class StoryService {
 	constructor(db) {
@@ -41,6 +42,10 @@ class StoryService {
 			.split(SENTENCE_ENDINGS)
 			.map((part) => this._clean(part))
 			.filter(Boolean);
+	}
+
+	_stripTrailingClausePunct(text) {
+		return String(text || "").replace(TRAILING_CLAUSE_PUNCT, "");
 	}
 
 	_splitClauses(sentence) {
@@ -446,8 +451,8 @@ class StoryService {
 	async saveCustomSentence(storyId, clauses, userId) {
 		const story = await this.getOwnedStory(storyId, userId);
 
-		const chineseText = this._clean(
-			Array.isArray(clauses) ? clauses.join("") : clauses,
+		const chineseText = this._stripTrailingClausePunct(
+			this._clean(Array.isArray(clauses) ? clauses.join("") : clauses),
 		);
 		if (!chineseText) throw httpError(400, "Select at least one section");
 
@@ -519,7 +524,10 @@ class StoryService {
 
 		const saved = await story.getSentences();
 		const savedTexts = saved.map((s) => this._clean(s.chineseText));
-		const isCovered = (text) => savedTexts.some((t) => t.includes(text));
+		const isCovered = (text) => {
+			const probe = this._stripTrailingClausePunct(text);
+			return savedTexts.some((t) => t.includes(probe));
+		};
 
 		return {
 			story,

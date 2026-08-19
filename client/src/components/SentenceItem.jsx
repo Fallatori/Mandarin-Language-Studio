@@ -1,4 +1,5 @@
 import React from 'react';
+import HanziText from './HanziText';
 
 function SentenceItem({ sentence, onDeleteSentence, onToggleDifficult, onEditSentence, audioBaseUrl }) {
     
@@ -7,6 +8,9 @@ function SentenceItem({ sentence, onDeleteSentence, onToggleDifficult, onEditSen
     const isDue = !hasNextDue || new Date(sentence.progress.nextDueAt) <= new Date();
     const isDifficult = sentence.progress?.difficult;
     
+    const hanziLength = Array.from(sentence.chineseText || '').length;
+    const lengthClass = hanziLength > 24 ? ' is-long' : hanziLength > 14 ? ' is-medium' : '';
+
     const audioUrl = sentence.audioFilename ? `${audioBaseUrl}${sentence.audioFilename}` : null;
 
     const playAudio = (e) => {
@@ -83,7 +87,7 @@ function SentenceItem({ sentence, onDeleteSentence, onToggleDifficult, onEditSen
             </div>
 
             <div className="card-content">
-                <h3 className="card-hanzi hanzi-font">{sentence.chineseText}</h3>
+                <HanziText as="h3" className={`card-hanzi hanzi-font${lengthClass}`} text={sentence.chineseText} />
                 <p className="card-pinyin">{sentence.pinyin}</p>
                 <p className="card-english">{sentence.englishTranslation}</p>
             </div>

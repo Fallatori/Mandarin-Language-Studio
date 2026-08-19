@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useStoryImport } from '../hooks/useStoryImport';
+import HanziText from './HanziText';
 
 const StatBox = ({ label, value, type }) => (
     <div className={`stat-box stat-${type}`}>
@@ -141,7 +142,7 @@ function StoryImportForm({ onImportComplete, onCancel }) {
                                     <div className="bulk-item-chinese-group">
                                         <span className="bulk-item-pinyin">{item.pinyin}</span>
                                         <div>
-                                            <span className="bulk-item-chinese hanzi-font">{item.chineseText}</span>
+                                            <HanziText className="bulk-item-chinese hanzi-font" text={item.chineseText} />
                                             {item.isDuplicate && <span className="bulk-badge-duplicate bulk-badge-db">Existing</span>}
                                             {item.isBatchDuplicate && <span className="bulk-badge-duplicate bulk-badge-file">Duplicate</span>}
                                             {!item.words && <span className="bulk-badge-duplicate bulk-badge-file">Auto-segment</span>}

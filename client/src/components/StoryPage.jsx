@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import Modal from './Modal';
@@ -9,6 +9,7 @@ const WORDS_URL = 'http://localhost:5001/api/words';
 const CAP_KEY = 'storyMaxSentenceLength';
 const HIGHLIGHT_KEY = 'storyHighlightWords';
 const PINYIN_KEY = 'storyShowPinyin';
+const SPLIT_TOOLS_KEY = 'storyShowSplitTools';
 const DEFAULT_CAP = 30;
 
 const statusClass = (status) => {
@@ -52,6 +53,9 @@ function StoryPage() {
     const [showPinyin, setShowPinyin] = useState(
         () => localStorage.getItem(PINYIN_KEY) === 'on'
     );
+    const [showSplitTools, setShowSplitTools] = useState(
+        () => localStorage.getItem(SPLIT_TOOLS_KEY) !== 'off'
+    );
 
     useEffect(() => {
         localStorage.setItem(HIGHLIGHT_KEY, highlight ? 'on' : 'off');
@@ -60,6 +64,22 @@ function StoryPage() {
     useEffect(() => {
         localStorage.setItem(PINYIN_KEY, showPinyin ? 'on' : 'off');
     }, [showPinyin]);
+
+    useEffect(() => {
+        localStorage.setItem(SPLIT_TOOLS_KEY, showSplitTools ? 'on' : 'off');
+        if (!showSplitTools) {
+            setActiveSplit(null);
+            setSelection({ sentence: null, clauses: [] });
+        }
+    }, [showSplitTools]);
+
+    const splitPanelRef = useRef(null);
+
+    useEffect(() => {
+        if (activeSplit !== null && splitPanelRef.current) {
+            splitPanelRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    }, [activeSplit]);
 
     const handleAuthError = useCallback((err) => {
         if (err.response && err.response.status === 401) navigate('/login');
@@ -223,6 +243,7 @@ function StoryPage() {
 
     if (reading) {
         const splitTarget = reading.sentences.find((s) => s.index === activeSplit);
+        const pendingSentences = reading.sentences.filter((s) => !s.autoSave && s.pending);
 
         return (
             <div className="page-container">
@@ -255,6 +276,19 @@ function StoryPage() {
                                 </span>
                                 {showPinyin ? 'Pinyin on' : 'Pinyin off'}
                             </button>
+                            <button
+                                type="button"
+                                className={showSplitTools ? 'btn-outline btn-small active' : 'btn-outline btn-small'}
+                                onClick={() => setShowSplitTools(!showSplitTools)}
+                                title={
+                                    showSplitTools
+                                        ? 'Hide the unsaved-sentence highlight and Split buttons'
+                                        : 'Show which sentences are not in your list yet'
+                                }
+                            >
+                                <span className="material-symbols-outlined">content_cut</span>
+                                {showSplitTools ? 'Split tools on' : 'Split tools off'}
+                            </button>
                         </div>
                         {highlight && <Legend />}
                     </div>
@@ -262,48 +296,92 @@ function StoryPage() {
 
                 {error && <p className="error-message">{error}</p>}
 
+                {showSplitTools && (
+                <div className="story-save-hint">
+                    {pendingSentences.length > 0 ? (
+                        <>
+                            <span className="story-swatch swatch-needs-split" />
+                            <span>
+                                {pendingSentences.length} highlighted{' '}
+                                {pendingSentences.length === 1 ? 'sentence is' : 'sentences are'} too long to
+                                save whole — use <strong>Split</strong> to save shorter pieces.
+                            </span>
+                            <button
+                                type="button"
+                                className="btn-outline btn-small"
+                                onClick={() => {
+                                    const next = pendingSentences[0];
+                                    setActiveSplit(next.index);
+                                    setSelection({ sentence: next.index, clauses: [] });
+                                }}
+                            >
+                                <span className="material-symbols-outlined">content_cut</span>
+                                Split first
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            <span className="material-symbols-outlined story-hint-done">check_circle</span>
+                            <span>Every sentence in this story is saved to your list.</span>
+                        </>
+                    )}
+                </div>
+                )}
+
                 <div className={`story-prose hanzi-font ${highlight ? '' : 'plain'} ${showPinyin ? 'with-pinyin' : ''}`}>
-                    {reading.sentences.map((sentence) => (
+                    {reading.sentences.map((sentence, sentenceIndex) => {
+                        const needsSplit = showSplitTools && !sentence.autoSave && sentence.pending;
+                        return (
+                        <React.Fragment key={sentence.index}>
+                        {sentenceIndex > 0 && <wbr />}
                         <span
-                            key={sentence.index}
-                            className={`story-sentence-inline ${activeSplit === sentence.index ? 'splitting' : ''}`}
+                            className={`story-sentence-inline ${needsSplit ? 'needs-split' : ''} ${activeSplit === sentence.index ? 'splitting' : ''}`}
+                            title={needsSplit ? 'Not saved yet — too long to save whole. Use Split to save shorter pieces.' : undefined}
                         >
                             {sentence.words.map((word, i) => (
                                 word.isWord === false ? (
-                                    <span key={i} className="story-punct">{word.chineseWord}</span>
+                                    <React.Fragment key={i}>
+                                        {i > 0 && <wbr />}
+                                        <span className="story-punct">{word.chineseWord}</span>
+                                    </React.Fragment>
                                 ) : (
-                                    <span
-                                        key={i}
-                                        className={`story-word ${highlight ? statusClass(word.status) : ''}`}
-                                        onClick={() => lookupWord(word.chineseWord)}
-                                        title={word.status || 'not in your list'}
-                                    >
-                                        <ruby>
-                                            {word.chineseWord}
-                                            <rt>{word.pinyin}</rt>
-                                        </ruby>
-                                    </span>
+                                    <React.Fragment key={i}>
+                                        {i > 0 && <wbr />}
+                                        <span
+                                            className={`story-word ${highlight ? statusClass(word.status) : ''}`}
+                                            onClick={() => lookupWord(word.chineseWord)}
+                                            title={word.status || 'not in your list'}
+                                        >
+                                            <ruby>
+                                                {word.chineseWord}
+                                                <rt>{word.pinyin}</rt>
+                                            </ruby>
+                                        </span>
+                                    </React.Fragment>
                                 )
                             ))}
-                            {!sentence.autoSave && sentence.pending && (
+                            {needsSplit && (
                                 <button
                                     type="button"
-                                    className="story-split-toggle"
+                                    className={`story-split-toggle ${activeSplit === sentence.index ? 'active' : ''}`}
                                     onClick={() => {
                                         setActiveSplit(activeSplit === sentence.index ? null : sentence.index);
                                         setSelection({ sentence: sentence.index, clauses: [] });
                                     }}
-                                    title="Split this sentence into shorter ones"
+                                    title="Split this sentence into shorter ones you can save"
                                 >
                                     <span className="material-symbols-outlined">content_cut</span>
+                                    <span>{activeSplit === sentence.index ? 'Splitting' : 'Split'}</span>
                                 </button>
                             )}
                         </span>
-                    ))}
+                        </React.Fragment>
+                        );
+                    })}
                 </div>
 
                 {splitTarget && (
-                    <div className="story-split-panel">
+                    <div className="story-split-panel" ref={splitPanelRef}>
                         <div className="story-split-head">
                             <span>Pick the sections you want to save as a sentence</span>
                             <button

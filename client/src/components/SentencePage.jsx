@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import SentenceForm from './SentenceForm';
 import SentenceList from './SentenceList';
 import BulkUploadForm from './BulkUploadForm';
+import HanziText from './HanziText';
 import Modal from './Modal';
 
 const API_URL = 'http://localhost:5001/api/sentences';
@@ -262,7 +263,7 @@ function SentencePage() {
             >
                 {editingSentence && (
                     <form onSubmit={saveEditedSentence} className="word-edit-form">
-                        <p className="hanzi-font edit-sentence-hanzi">{editingSentence.chineseText}</p>
+                        <HanziText as="p" className="hanzi-font edit-sentence-hanzi" text={editingSentence.chineseText} />
 
                         <div className="word-edit-group">
                             <label className="login-label" htmlFor="edit-pinyin">Pinyin</label>

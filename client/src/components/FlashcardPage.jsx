@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import LearnSentenceGame from './LearnSentenceGame';
+import HanziText from './HanziText';
 
 function FlashcardPage() {
     const navigate = useNavigate();
@@ -417,7 +418,7 @@ function FlashcardPage() {
 
     // Design: Front content centered big, Back content details
     const frontContent = gameMode === 'CN_FRONT' 
-        ? <div className="fc-content-main hanzi-font">{currentCard.chineseText}</div>
+        ? <HanziText className="fc-content-main hanzi-font" text={currentCard.chineseText} />
         : <div className="fc-content-main">{currentCard.englishTranslation}</div>;
 
     const backContent = gameMode === 'CN_FRONT'
@@ -429,7 +430,7 @@ function FlashcardPage() {
           )
         : (
             <div className="fc-content-back">
-                <div className="fc-hanzi hanzi-font">{currentCard.chineseText}</div>
+                <HanziText className="fc-hanzi hanzi-font" text={currentCard.chineseText} />
                 <div className="fc-pinyin">{currentCard.pinyin}</div>
             </div>
           );
