@@ -43,6 +43,16 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    const deleteAccount = async (password) => {
+        try {
+            await axios.delete('http://localhost:5001/api/auth/me', { data: { password }, withCredentials: true });
+            setUser(null);
+            return { success: true };
+        } catch (error) {
+            return { success: false, message: error.response?.data?.data?.result || "Failed to delete account" };
+        }
+    };
+
     const logout = async () => {
         try {
             await axios.post('http://localhost:5001/api/auth/logout', {}, { withCredentials: true });
@@ -57,7 +67,7 @@ export const AuthProvider = ({ children }) => {
     }
 
     return (
-        <AuthContext.Provider value={{ user, login, register, logout }}>
+        <AuthContext.Provider value={{ user, login, register, logout, deleteAccount }}>
             {children}
         </AuthContext.Provider>
     );

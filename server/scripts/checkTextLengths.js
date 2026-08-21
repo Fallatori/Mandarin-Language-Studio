@@ -5,6 +5,8 @@ const LIMIT = 512;
 
 const COLUMNS = [
 	{ table: "Sentences", column: "english_translation", limit: LIMIT },
+	{ table: "Sentences", column: "pinyin", limit: 1024 },
+	{ table: "Sentences", column: "pinyin_search", limit: 768 },
 	{ table: "Sentences", column: "chinese_text", limit: null },
 	{ table: "Words", column: "english_translation", limit: 255 },
 ];

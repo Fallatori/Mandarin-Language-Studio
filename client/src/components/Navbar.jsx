@@ -1,23 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import AccountModal from './AccountModal';
 
 function Navbar() {
     const location = useLocation();
-    const { user, logout } = useAuth();
-    const navigate = useNavigate();
+    const { user } = useAuth();
     const [usage, setUsage] = useState(null);
+    const [accountOpen, setAccountOpen] = useState(false);
 
     const isActive = (path) => {
         return location.pathname === path ? 'nav-item active' : 'nav-item';
-    };
-
-    const handleLogout = async () => {
-        if(confirm("Log out?")){
-             await logout();
-             navigate('/login');
-        }
     };
 
     useEffect(() => {
@@ -95,7 +89,7 @@ function Navbar() {
                         )}
                     </div>
                 )}
-                <div className="user-profile" onClick={handleLogout} title="Click to Logout">
+                <div className="user-profile" onClick={() => setAccountOpen(true)} title="Account settings">
                     <div className="user-avatar">
                         <span className="material-symbols-outlined" style={{color:'#64748b'}}>person</span>
                     </div>
@@ -103,10 +97,11 @@ function Navbar() {
                         <p className="name">{user.username || 'User'}</p>
                         <p className="role">Learner</p>
                     </div>
-                    <span className="material-symbols-outlined" style={{marginLeft:'auto', color:'#64748b', fontSize:'1.2rem'}}>logout</span>
+                    <span className="material-symbols-outlined" style={{marginLeft:'auto', color:'#64748b', fontSize:'1.2rem'}}>settings</span>
                 </div>
             </div>
-            
+
+            <AccountModal isOpen={accountOpen} onClose={() => setAccountOpen(false)} />
         </aside>
     );
 }

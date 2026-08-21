@@ -16,7 +16,7 @@ const MAX_STORIES_PER_DAY = limitFrom(process.env.STORY_DAILY_LIMIT, 1);
 const MAX_WORDS_PER_STORY = limitFrom(process.env.STORY_MAX_WORDS, 200);
 const DEFAULT_MAX_SENTENCE_LENGTH = 30;
 
-const SENTENCE_ENDINGS = /(?<=[。！？；…!?])/u;
+const SENTENCE_ENDINGS = /(?<=[。！？；…!?])|\n+/u;
 const CLAUSE_ENDINGS = /(?<=[，、；：,])/u;
 const TRAILING_CLAUSE_PUNCT = /[，、；：,]+$/u;
 
@@ -63,14 +63,81 @@ class StoryService {
 			);
 	}
 
-	_tokens(text) {
+	_jiebaTokens(text) {
 		return jieba
 			.cut(text)
 			.filter((token) => token.trim() !== "")
 			.map((token) => ({
 				text: token,
-				isWord: !/[\p{P}\p{Z}]/u.test(token),
+				isWord: !/[\p{P}\p{Z}\p{S}]/u.test(token),
 			}));
+	}
+
+	_coverWithKnown(text, known) {
+		const covers = new Array(text.length + 1).fill(null);
+		covers[0] = [];
+
+		for (let start = 0; start < text.length; start += 1) {
+			if (!covers[start]) continue;
+			const limit = Math.min(known.longest, text.length - start);
+
+			for (let length = limit; length > 0; length -= 1) {
+				const piece = text.slice(start, start + length);
+				if (!known.words.has(piece)) continue;
+				if (!covers[start + length]) {
+					covers[start + length] = [...covers[start], piece];
+				}
+			}
+		}
+
+		return covers[text.length];
+	}
+
+	_tokens(text, known) {
+		const base = this._jiebaTokens(text);
+		if (!known || known.longest === 0) return base;
+
+		const tokens = [];
+		let index = 0;
+
+		while (index < base.length) {
+			let joined = null;
+			let combined = "";
+
+			for (let end = index; end < base.length; end += 1) {
+				combined += base[end].text;
+				if (combined.length > known.longest) break;
+				if (end > index && known.words.has(combined)) {
+					joined = { text: combined, end };
+				}
+			}
+
+			if (joined) {
+				tokens.push({ text: joined.text, isWord: true });
+				index = joined.end + 1;
+				continue;
+			}
+
+			const token = base[index];
+			index += 1;
+
+			if (!token.isWord || known.words.has(token.text)) {
+				tokens.push(token);
+				continue;
+			}
+
+			const pieces = this._coverWithKnown(token.text, known);
+			if (pieces && pieces.length > 1) {
+				for (const piece of pieces) {
+					tokens.push({ text: piece, isWord: true });
+				}
+				continue;
+			}
+
+			tokens.push(token);
+		}
+
+		return tokens;
 	}
 
 	_describeWord(chineseWord) {
@@ -100,10 +167,20 @@ class StoryService {
 		return new Map(chineseWords.map((w) => [w, byWord.get(w) ?? null]));
 	}
 
-	async _wordInfoFor(chineseWords, userId) {
+	async _userWordMap(userId) {
 		const rows = await this.wordService.getWordsByUser(userId);
-		const byWord = new Map(rows.map((row) => [row.chineseWord, row]));
+		return new Map(rows.map((row) => [row.chineseWord, row]));
+	}
 
+	_knownIndex(byWord) {
+		let longest = 0;
+		for (const word of byWord.keys()) {
+			longest = Math.max(longest, word.length);
+		}
+		return { words: new Set(byWord.keys()), longest };
+	}
+
+	_wordInfoFor(chineseWords, byWord) {
 		return new Map(
 			chineseWords.map((w) => {
 				const owned = byWord.get(w);
@@ -519,8 +596,15 @@ class StoryService {
 		const maxLength = Number(options.maxLength) || DEFAULT_MAX_SENTENCE_LENGTH;
 
 		const sentences = this._splitSentences(story.chineseText);
-		const unique = [...new Set(sentences.flatMap((s) => this._segment(s)))];
-		const info = await this._wordInfoFor(unique, userId);
+		const byWord = await this._userWordMap(userId);
+		const known = this._knownIndex(byWord);
+		const tokenised = sentences.map((text) => this._tokens(text, known));
+		const unique = [
+			...new Set(
+				tokenised.flat().filter((t) => t.isWord).map((t) => t.text),
+			),
+		];
+		const info = this._wordInfoFor(unique, byWord);
 
 		const saved = await story.getSentences();
 		const savedTexts = saved.map((s) => this._clean(s.chineseText));
@@ -545,7 +629,7 @@ class StoryService {
 					autoSave: [...chineseText].length <= maxLength,
 					saved: isCovered(chineseText),
 					pending: clauses.some((c) => !c.saved),
-					words: this._tokens(chineseText).map((token) => ({
+					words: tokenised[index].map((token) => ({
 						chineseWord: token.text,
 						isWord: token.isWord,
 						status: token.isWord

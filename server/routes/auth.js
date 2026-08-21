@@ -156,6 +156,42 @@ router.get("/me", authenticateToken, (req, res) => {
 	});
 });
 
+router.delete("/me", authenticateToken, async (req, res) => {
+	const { password } = req.body || {};
+
+	if (!password) {
+		return res.status(400).json({
+			status: "error",
+			statuscode: 400,
+			data: { result: "Password is required" },
+		});
+	}
+
+	try {
+		await userService.deleteAccount(req.user.id, password);
+		res.clearCookie("token");
+		return res.json({
+			status: "success",
+			statuscode: 200,
+			data: { result: "Account deleted" },
+		});
+	} catch (error) {
+		if (error.status) {
+			return res.status(error.status).json({
+				status: "error",
+				statuscode: error.status,
+				data: { result: error.message },
+			});
+		}
+		console.error("Account deletion error:", error);
+		return res.status(500).json({
+			status: "error",
+			statuscode: 500,
+			data: { result: "Failed to delete account", error: error.message },
+		});
+	}
+});
+
 router.post("/logout", (req, res) => {
 	res.clearCookie("token");
 	res.json({ message: "Logged out" });

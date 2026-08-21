@@ -238,6 +238,7 @@ No data migration is needed: `learning` stays valid. Remember
 - [x] Track which words are learned — `UserWords.status` (`new`/`learning`/`known`), promoted automatically after six practices of a sentence
 - [x] Replace the unofficial `translate` scrape — sentence English now uses Google Cloud Translation, word glosses use the offline CC-CEDICT dictionary
 - [x] Add chinese keyboard — compose IME on add-sentence, new suggested words, and Add Word. `GET /api/ime` ranks CC-CEDICT by pinyin (`woaini` → 我爱你, then jieba splits 我|爱|你). Recap stage 3 stays lexicon-only so it does not leak the answer
+- [x] Let a user delete their own account — sidebar profile opens an Account modal; deleting needs the email typed out *and* the password, and the server re-checks the password before `DELETE /api/auth/me`. Shared words/sentences other users hold survive with `creator_id = NULL`
 
 ### In progress
 

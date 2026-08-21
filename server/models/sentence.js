@@ -17,11 +17,11 @@ module.exports = (sequelize) => {
 				allowNull: false,
 			},
 			pinyin: {
-				type: DataTypes.STRING,
+				type: DataTypes.STRING(1024),
 				allowNull: false,
 			},
 			pinyinSearch: {
-				type: DataTypes.STRING,
+				type: DataTypes.STRING(768),
 				allowNull: true,
 			},
 			englishTranslation: {
